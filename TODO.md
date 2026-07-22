@@ -1,10 +1,12 @@
 - [ ] Add gui elements
 - [x] Add sprite drawing
-- [ ] Add configurable custom drawing logic
-- [ ] Make some objects
+- [ ] Add configurable custom drawing logic \
+- [ ] Make some objects \
 - [ ] add multiple sprites per object
-- [ ] add animation support
+- [ ] add animation support \
 - [ ] mabye add a texture manager owned by screen
-- [ ] hitbox implementation
-- [ ] make vec2 implicitly cast int to double
-- [ ] input handling
+- [ ] hitbox implementation \
+- [ ] make vec2 implicitly cast int to double \
+- [ ] input handling \
+- [ ] event handling \
+- [ ] make screen handle camera creation
