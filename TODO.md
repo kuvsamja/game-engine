@@ -9,4 +9,7 @@
 - [ ] make vec2 implicitly cast int to double \
 - [ ] input handling \
 - [ ] event handling \
-- [ ] make screen handle camera creation
+- [x] make screen handle camera creation
+- [ ] sprite z ordering
+- [ ] make scenes load from files
+- [x] fix window scaling

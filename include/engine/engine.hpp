@@ -82,7 +82,7 @@ class SpriteObject : public Transform {
         sprite_size - sprite width and height in world
         sprite_offset - sprite offset from object position in world units
     */
-    SpriteObject(vec2<double> pos, vec2<double> sprite_size, vec2<double> sprite_offset, double z_layer) {
+    SpriteObject(vec2<double> position, vec2<double> sprite_size, vec2<double> sprite_offset, double z_layer) {
         this->position = position;
         this->sprite_size = sprite_size;
         this->sprite_offset = sprite_offset;
@@ -138,6 +138,7 @@ class Camera {
     void bindScene(Scene* scene) {
         this->scene = scene;
         scene->renderer = this->renderer;
+        // TODO: make this load scene from a file and bind textures
     }
     Scene* getScene() { return scene; }
 
@@ -157,18 +158,60 @@ struct CameraData {
 };
 
 
-
-// mabye add a texture manager owned by screen
-
 class Screen {
   private:
-    SDL_Window* window;
-    SDL_Renderer* renderer;
+    SDL_Window* window{nullptr};
+    SDL_Renderer* renderer{nullptr};
+    SDL_Texture* framebuffer{nullptr};
     double window_scale;
     vec2<uint32_t> size;
 
     // TODO: add gui elements
     std::vector<CameraData> cameras{};
+
+
+    void init(const char* name) {
+        if (!SDL_Init(SDL_INIT_VIDEO)) {
+            SDL_Log("SDL_Init failed: %s", SDL_GetError());
+            exit(1);
+        }
+        
+        window = SDL_CreateWindow(
+            name,
+            static_cast<int>(size.x() * window_scale),
+            static_cast<int>(size.y() * window_scale),
+            SDL_WINDOW_MINIMIZED
+            
+        );
+        if (window == NULL) {
+            SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
+            exit(1);
+        }
+
+        renderer = SDL_CreateRenderer(window, NULL);
+        if (renderer == NULL) {
+            SDL_Log("SDL_CreateRenderer failed: %s", SDL_GetError());
+            exit(1);
+        }
+
+        SDL_SetRenderLogicalPresentation(
+            renderer,
+            static_cast<int>(size.x()),
+            static_cast<int>(size.y()),
+            SDL_LOGICAL_PRESENTATION_LETTERBOX
+        );
+
+        framebuffer = SDL_CreateTexture(
+            renderer,
+            SDL_PIXELFORMAT_RGBA8888,
+            SDL_TEXTUREACCESS_TARGET,
+            static_cast<int>(size.x()),
+            static_cast<int>(size.y())
+        );
+
+        SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_NEAREST);
+
+    }
 
     /* TODO: add multiple overloads */
     /*
@@ -201,7 +244,13 @@ class Screen {
 
 
   public:
-    
+    int has_anti_aliasing = 1;  
+
+    /*
+        name - window name
+        width/height - pixel width and height of the window
+        window_scale - scales a window up or down by a factor
+    */
     Screen(const char* name, uint32_t width, uint32_t height, double window_scale) {
         size.x() = width;
         size.y() = height;
@@ -221,30 +270,6 @@ class Screen {
         SDL_Quit();
     }
 
-    void init(const char* name) {
-        if (!SDL_Init(SDL_INIT_VIDEO)) {
-            SDL_Log("SDL_Init failed: %s", SDL_GetError());
-            exit(1);
-        }
-
-        window = SDL_CreateWindow(
-            name,
-            static_cast<int>(size.x() * window_scale),
-            static_cast<int>(size.y() * window_scale),
-            0
-        );
-        if (window == NULL) {
-            SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
-            exit(1);
-        }
-
-        renderer = SDL_CreateRenderer(window, NULL);
-        if (renderer == NULL) {
-            SDL_Log("SDL_CreateRenderer failed: %s", SDL_GetError());
-            exit(1);
-        }
-
-    }
 
     int width() {
         return size.x();
@@ -260,11 +285,19 @@ class Screen {
         return camera;
     }
 
+    /* binds a texture to a sprite_object */
     void bindTexture(SpriteObject* sprite_object, const char* path) {
         sprite_object->loadTexture(renderer, path);
     }
 
+    /* draws all bound cameras */
     void draw() {
+        switch(has_anti_aliasing) {
+            case 0: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_NEAREST); break;
+            case 1: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_LINEAR); break;
+        }
+        SDL_SetRenderTarget(renderer, framebuffer);
+
         for( const auto &camera_data : cameras ) {
             SDL_Rect viewport {
                 static_cast<int>(camera_data.screen_viewport_position.x() * width()),
@@ -284,6 +317,11 @@ class Screen {
             SDL_FRect clear_rect { 0.0f, 0.0f, static_cast<float>(viewport.w), static_cast<float>(viewport.h) };
             SDL_RenderFillRect(renderer, &clear_rect);
 
+            if (camera_data.camera->getScene() == nullptr) {
+                std::cerr << "Please bind a scene to the camera before drawing" << std::endl;
+                exit(1);
+            }
+
             for( const auto &sprite_object : camera_data.camera->getScene()->sprite_objects ) {
                 /* get things in relation to the camera */
                 vec2<double> cam_object_position = camera_data.camera->getPointPosition( sprite_object->position + sprite_object->sprite_offset );
@@ -293,10 +331,10 @@ class Screen {
                 );
                 /* transform to screenspace */
                 SDL_FRect sprite_location_data {
-                    static_cast<float>(cam_object_position.x() * camera_data.screen_viewport_size.x() * width()),
-                    static_cast<float>(cam_object_position.y() * camera_data.screen_viewport_size.y() * height()),
-                    static_cast<float>(cam_object_size.x() * camera_data.screen_viewport_size.x() * width()),
-                    static_cast<float>(cam_object_size.y() * camera_data.screen_viewport_size.y() * height())
+                    static_cast<float>(cam_object_position.x() * viewport.w),
+                    static_cast<float>(cam_object_position.y() * viewport.h),
+                    static_cast<float>(cam_object_size.x() * viewport.w),
+                    static_cast<float>(cam_object_size.y() * viewport.h)
                 };
 
                 SDL_RenderTexture(renderer, sprite_object->getTexture(), NULL, &sprite_location_data);
@@ -304,6 +342,9 @@ class Screen {
 
             SDL_SetRenderViewport(renderer, NULL);
         }
+        SDL_SetRenderTarget(renderer, NULL);
+
+        SDL_RenderTexture(renderer, framebuffer, NULL, NULL);
 
         SDL_RenderPresent(renderer);
     }
