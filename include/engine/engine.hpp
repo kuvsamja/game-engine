@@ -5,11 +5,11 @@
 #include <SDL3_image/SDL_image.h>
 
 #include <vector>
-#include <cmath>
 #include <cstdint>
 #include <iostream>
 
-#include <engine/vec2.hpp>
+#include "vec2.hpp"
+#include "SortedVector.hpp"
 
 namespace engine
 {
@@ -18,8 +18,6 @@ class Transform {
   public:
     /* position in world space */
     vec2<double> position;
-    /* speed in world space */
-    vec2<double> speed;
 };
 
 class SpriteObject : public Transform {
@@ -27,6 +25,13 @@ class SpriteObject : public Transform {
     SDL_Texture* texture{nullptr};
 
   public:
+    ~SpriteObject() {
+        if (texture) SDL_DestroyTexture(texture);
+    }
+      
+    /*
+        Load an image as the sprite
+    */
     void loadTexture(SDL_Renderer* renderer, const char* path) {
         texture = IMG_LoadTexture(renderer, path);
         if (!texture) {
@@ -39,7 +44,7 @@ class SpriteObject : public Transform {
     /* current sprite */
     vec2<double> sprite_offset;
     vec2<double> sprite_size;
-    int z_layer;
+    double z_layer;
     /*
         x, y - position in world
         sprite_w - sprite width
@@ -69,6 +74,7 @@ class SpriteObject : public Transform {
         sprite_w - sprite width
         sprite_h - sprite height
         sprite_offset_x / sprite_offset_y - sprite offset from object position in world units
+        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
     */
     SpriteObject(double x, double y, double sprite_w, double sprite_h, double sprite_offset_x, double sprite_offset_y, double z_layer) {
         position = vec2(x, y);
@@ -81,6 +87,7 @@ class SpriteObject : public Transform {
         position - position in world
         sprite_size - sprite width and height in world
         sprite_offset - sprite offset from object position in world units
+        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
     */
     SpriteObject(vec2<double> position, vec2<double> sprite_size, vec2<double> sprite_offset, double z_layer) {
         this->position = position;
@@ -92,21 +99,41 @@ class SpriteObject : public Transform {
 };
 
 
+
 class Scene {
+  private:
+    static inline bool compareZ(SpriteObject* const& s1, SpriteObject* const& s2) {
+        return s1->z_layer > s2->z_layer;
+    }
+
   public:
     SDL_Renderer* renderer{nullptr};
-    std::vector<SpriteObject*> sprite_objects{};
-
+    SortedVector<SpriteObject*> sprite_objects{compareZ};
+    
+    ~Scene() {
+        for(auto sprite_object : sprite_objects) {
+            delete sprite_object;
+        }
+    }
+    
+    /*
+        position - position in worldspace
+        sprite_path - file path to the image of the sprite
+        sprite_size - sprite width and height in worldspace
+        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+        creates a SpriteObject and pushes it into the Scene
+    */
     SpriteObject* addSpriteObject(vec2<double> position, const char* sprite_path, vec2<double> sprite_size, double z_layer) {
         if(renderer == nullptr) {
-            std::cerr << "You must first bind the scene to a camera to upload textures using \"inline void engine::Camera::bindScene(engine::Scene *scene)\"" << std::endl;
+            std::cerr << "You must first bind the Scene to a Camera created by the Screen to upload textures using \"inline void engine::Camera::bindScene(engine::Scene *scene)\"" << std::endl;
             return nullptr;
         }
         SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_layer);
         sprite_object->loadTexture(renderer, sprite_path);
-        sprite_objects.push_back(sprite_object); // TODO: take z_order into account
+        sprite_objects.insert(sprite_object); // TODO: take z_order into account
         return sprite_object;
     }
+    
     
 
 };
@@ -123,18 +150,33 @@ class Camera {
     /* background color */
     SDL_Color bg_color{0, 0, 0, 255};
 
+    /*
+        x, y - cameras upper left corner position in worldspace
+        width, height - width and height of the camera viewport in world units
+        renderer - sdl renderer, should be set by engine::Screen
+        *shouldnt be called directly, use engine::Screen::createCamera
+    */
     Camera(double x, double y, double width, double height, SDL_Renderer* renderer) {
         position = vec2(x, y);
         size = vec2(width, height);
         this->renderer = renderer;
     }
 
+    /*
+        position - cameras upper left corner position in worldspace
+        size - width, size.x(), and height, size.y(), of the camera viewport in world units
+        renderer - sdl renderer, should be set by engine::Screen
+        *shouldnt be called directly, use engine::Screen::createCamera
+    */
     Camera(vec2<double> position, vec2<double> size, SDL_Renderer* renderer) {
         this->position = position;
         this->size = size;
         this->renderer = renderer;
     }
 
+    /*
+        Sets scenes SDL_Renderer to the cameras SDL_Renderer and binds the scene to the camera
+    */
     void bindScene(Scene* scene) {
         this->scene = scene;
         scene->renderer = this->renderer;
@@ -142,7 +184,9 @@ class Camera {
     }
     Scene* getScene() { return scene; }
 
-    /* Returns the screen position of a point, mapped 0 to 1*/
+    /*
+        Returns the screen position of a point, mapped 0 to 1, values (-inf, 0)U(1, +inf) mean object is out of the camera sight
+    */
     vec2<double> getPointPosition(vec2<double> point) {
         vec2<double> translated_point = point - position;
         vec2<double> screen_point_position = vec2<double>(translated_point.x() / size.x(), translated_point.y() / size.y());
@@ -169,7 +213,9 @@ class Screen {
     // TODO: add gui elements
     std::vector<CameraData> cameras{};
 
-
+    /* 
+        Initializes SDL
+    */
     void init(const char* name) {
         if (!SDL_Init(SDL_INIT_VIDEO)) {
             SDL_Log("SDL_Init failed: %s", SDL_GetError());
@@ -213,7 +259,6 @@ class Screen {
 
     }
 
-    /* TODO: add multiple overloads */
     /*
         screen_viewport_position - position of the upper left corner of the camera, mapped 0-1 to screenspace
         screen_viewport_size - size of the place displaying the camera, ranges 0-1 as a fraction of the screen size
@@ -263,7 +308,7 @@ class Screen {
         for(auto camera_data : cameras) {
             delete camera_data.camera;
         }
-
+        SDL_DestroyTexture(framebuffer);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
 
@@ -278,19 +323,31 @@ class Screen {
         return size.y();
     }
 
-    /* Creates a camera object, binds it to the screen and returns its pointer */
+    /* 
+        Creates a camera object on the heap, binds it to the screen and returns pointer to itself
+        position - camera position in worldspace
+        size - camera viewport width and height in world units    
+        screen_viewport_position - position of the upper left corner of the camera, mapped 0-1 to screenspace
+        screen_viewport_size - size of the place displaying the camera, ranges 0-1 as a fraction of the screen size
+    */
     Camera* createCamera(vec2<double> position, vec2<double> size, vec2<double> screen_viewport_position, vec2<double> screen_viewport_size) {
         Camera* camera = new Camera(position, size, renderer);
         addCamera(camera, screen_viewport_position, screen_viewport_size);
         return camera;
+        
     }
 
-    /* binds a texture to a sprite_object */
+    /*
+        Binds a texture to a sprite_object 
+        *shouldnt really be used*
+    */
     void bindTexture(SpriteObject* sprite_object, const char* path) {
         sprite_object->loadTexture(renderer, path);
     }
 
-    /* draws all bound cameras */
+    /*
+        Draws the scenes bound to cameras on the screen
+    */
     void draw() {
         switch(has_anti_aliasing) {
             case 0: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_NEAREST); break;
