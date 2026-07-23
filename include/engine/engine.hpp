@@ -2,6 +2,7 @@
 #define ENGINE_HPP
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_render.h>
 #include <SDL3_image/SDL_image.h>
 
 #include <vector>
@@ -28,7 +29,7 @@ class SpriteObject : public Transform {
     ~SpriteObject() {
         if (texture) SDL_DestroyTexture(texture);
     }
-      
+
     /*
         Load an image as the sprite
     */
@@ -109,13 +110,13 @@ class Scene {
   public:
     SDL_Renderer* renderer{nullptr};
     SortedVector<SpriteObject*> sprite_objects{compareZ};
-    
+
     ~Scene() {
         for(auto sprite_object : sprite_objects) {
             delete sprite_object;
         }
     }
-    
+
     /*
         position - position in worldspace
         sprite_path - file path to the image of the sprite
@@ -133,8 +134,8 @@ class Scene {
         sprite_objects.insert(sprite_object); // TODO: take z_order into account
         return sprite_object;
     }
-    
-    
+
+
 
 };
 
@@ -201,6 +202,89 @@ struct CameraData {
     vec2<double> screen_viewport_size;
 };
 
+struct GUIElement {
+  public:
+    SDL_Texture* texture;
+    vec2<double> position;
+    double width;
+    double aspect_ratio;
+    double z_order;
+};
+
+
+class GUIGroup {
+  private:
+    SDL_Renderer* renderer;
+    static inline bool compareZ(GUIElement* const& a, GUIElement* const& b) {
+        return a->z_order > b->z_order;
+    }
+  public:
+    SortedVector<GUIElement*> gui_texture_elements{compareZ};
+    vec2<double> viewport_position;
+    vec2<double> viewport_size;
+
+    GUIGroup(SDL_Renderer* renderer, vec2<double> viewport_position, vec2<double> viewport_size) {
+        this->renderer = renderer;
+        this->viewport_position = viewport_position;
+        this->viewport_size = viewport_size;
+    }
+
+    ~GUIGroup() {
+        for(auto element : gui_texture_elements) delete element;
+    }
+
+
+    /*
+        path - path to the texture image file
+        position - position in the GUIGroup viewport, mapped 0-1
+        width - width relative to the viewport width, scaled 0-1
+        z_order - decides which elements are drawn on top of others
+        note: gui aspect ratio doesnt depend on screen or viewport aspect ratios 
+     */
+    GUIElement* newElement(const char* path, vec2<double> position, double width, double z_order) {
+        GUIElement* element = new GUIElement;
+        element->position = position;
+        element->z_order = z_order;
+
+        float image_width;
+        float image_height;
+        element->texture = IMG_LoadTexture(renderer, path);
+        SDL_GetTextureSize(element->texture, &image_width, &image_height);
+        double aspect_ratio = image_height / image_width;
+        element->width = width;
+        element->aspect_ratio = aspect_ratio;
+        gui_texture_elements.insert(element);
+
+        return element;
+    }
+
+    /*
+        path - path to the texture image file
+        position - position in the GUIGroup viewport, mapped 0-1
+        size - size relative to the viewport size, scaled 0-1
+        z_order - decides which elements are drawn on top of others
+        Use this to stretch the element to a custom size, always use the other constructor if you want to keep the image aspect ratio
+        note: dont use for now
+        TODO: make the aspect ratio non-dependent on screen and viewport size
+     */
+    // GUIElement* newElement(const char* path, vec2<double> position, vec2<double> size, double z_order) {
+    //     GUIElement* element = new GUIElement;
+    //     element->position = position;
+    //     element->size = size;
+    //     element->z_order = z_order;
+
+    //     element->texture = IMG_LoadTexture(renderer, path);
+
+    //     gui_texture_elements.insert(element);
+
+    //     return element;
+    // }
+
+
+
+
+};
+
 
 class Screen {
   private:
@@ -212,8 +296,8 @@ class Screen {
 
     // TODO: add gui elements
     std::vector<CameraData> cameras{};
-
-    /* 
+    std::vector<GUIGroup*> gui_groups{};
+    /*
         Initializes SDL
     */
     void init(const char* name) {
@@ -221,13 +305,13 @@ class Screen {
             SDL_Log("SDL_Init failed: %s", SDL_GetError());
             exit(1);
         }
-        
+
         window = SDL_CreateWindow(
             name,
             static_cast<int>(size.x() * window_scale),
             static_cast<int>(size.y() * window_scale),
             SDL_WINDOW_MINIMIZED
-            
+
         );
         if (window == NULL) {
             SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
@@ -289,7 +373,7 @@ class Screen {
 
 
   public:
-    int has_anti_aliasing = 1;  
+    int has_anti_aliasing = 1;
 
     /*
         name - window name
@@ -299,7 +383,7 @@ class Screen {
     Screen(const char* name, uint32_t width, uint32_t height, double window_scale) {
         size.x() = width;
         size.y() = height;
-        this->window_scale = window_scale; 
+        this->window_scale = window_scale;
         init(name);
     }
 
@@ -307,6 +391,9 @@ class Screen {
         /* destruct cameras */
         for(auto camera_data : cameras) {
             delete camera_data.camera;
+        }
+        for(auto gui_group : gui_groups) {
+            delete gui_group;
         }
         SDL_DestroyTexture(framebuffer);
         SDL_DestroyRenderer(renderer);
@@ -323,10 +410,10 @@ class Screen {
         return size.y();
     }
 
-    /* 
+    /*
         Creates a camera object on the heap, binds it to the screen and returns pointer to itself
         position - camera position in worldspace
-        size - camera viewport width and height in world units    
+        size - camera viewport width and height in world units
         screen_viewport_position - position of the upper left corner of the camera, mapped 0-1 to screenspace
         screen_viewport_size - size of the place displaying the camera, ranges 0-1 as a fraction of the screen size
     */
@@ -334,11 +421,21 @@ class Screen {
         Camera* camera = new Camera(position, size, renderer);
         addCamera(camera, screen_viewport_position, screen_viewport_size);
         return camera;
-        
     }
 
     /*
-        Binds a texture to a sprite_object 
+        viewport_postion - position of the upper left corner of the group on the screen, mapped 0-1
+        viewport_size - size of the viewport relative to the screen size, mapped 0-1
+     */
+    GUIGroup* createGUIGroup(vec2<double> viewport_postion, vec2<double> viewport_size) {
+        GUIGroup* gui_group = new GUIGroup(renderer, viewport_postion, viewport_size);
+        gui_groups.push_back(gui_group);
+
+        return gui_group;
+    }
+
+    /*
+        Binds a texture to a sprite_object
         *shouldnt really be used*
     */
     void bindTexture(SpriteObject* sprite_object, const char* path) {
@@ -348,13 +445,7 @@ class Screen {
     /*
         Draws the scenes bound to cameras on the screen
     */
-    void draw() {
-        switch(has_anti_aliasing) {
-            case 0: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_NEAREST); break;
-            case 1: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_LINEAR); break;
-        }
-        SDL_SetRenderTarget(renderer, framebuffer);
-
+    void drawSprites() {
         for( const auto &camera_data : cameras ) {
             SDL_Rect viewport {
                 static_cast<int>(camera_data.screen_viewport_position.x() * width()),
@@ -383,7 +474,7 @@ class Screen {
                 /* get things in relation to the camera */
                 vec2<double> cam_object_position = camera_data.camera->getPointPosition( sprite_object->position + sprite_object->sprite_offset );
                 vec2<double> cam_object_size = vec2<double>(
-                    sprite_object->sprite_size.x() / camera_data.camera->size.x(), 
+                    sprite_object->sprite_size.x() / camera_data.camera->size.x(),
                     sprite_object->sprite_size.y() / camera_data.camera->size.y()
                 );
                 /* transform to screenspace */
@@ -399,13 +490,56 @@ class Screen {
 
             SDL_SetRenderViewport(renderer, NULL);
         }
+    }
+
+    void drawGUI() {
+        for(auto gui_group : gui_groups) {
+            SDL_Rect viewport {
+                static_cast<int>(gui_group->viewport_position.x() * width()),
+                static_cast<int>(gui_group->viewport_position.y() * height()),
+                static_cast<int>(gui_group->viewport_size.x() * width()),
+                static_cast<int>(gui_group->viewport_size.y() * height())
+            };
+            SDL_SetRenderViewport(renderer, &viewport);
+            
+            for(auto gui_texture_element : gui_group->gui_texture_elements) {
+                float pixel_width = gui_texture_element->width * viewport.w;
+                float pixel_height = pixel_width * gui_texture_element->aspect_ratio;
+
+                SDL_FRect element_location_data {
+                    static_cast<float>(gui_texture_element->position.x() * viewport.w),
+                    static_cast<float>(gui_texture_element->position.y() * viewport.h),
+                    pixel_width,
+                    pixel_height
+                };
+
+                SDL_RenderTexture(renderer, gui_texture_element->texture, NULL, &element_location_data);
+                
+            }
+            SDL_SetRenderViewport(renderer, NULL);
+        }
+    }
+
+    void draw() {
+        
+        switch(has_anti_aliasing) {
+            case 0: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_NEAREST); break;
+            case 1: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_LINEAR); break;
+        }
+        SDL_SetRenderTarget(renderer, framebuffer);
+
+        
+        drawSprites();
+        drawGUI();
+
+        
         SDL_SetRenderTarget(renderer, NULL);
 
         SDL_RenderTexture(renderer, framebuffer, NULL, NULL);
 
         SDL_RenderPresent(renderer);
     }
-    
+
 };
 
 

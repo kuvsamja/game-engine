@@ -1,4 +1,5 @@
 - [ ] Add gui elements
+- [ ] Make text gui
 - [x] Add sprite drawing
 - [ ] Add configurable custom drawing logic
 - [ ] Make some objects
@@ -10,9 +11,10 @@
 - [ ] input handling
 - [ ] event handling
 - [x] make screen handle camera creation
-- [ ] sprite z ordering
+- [x] sprite z ordering
 - [ ] make scenes load from files
 - [x] fix window scaling
 - [ ] make lighting
 - [ ] rotations
 - [ ] make mutable z_order
+- [ ] make multiple sprites use the same texture for performance
