@@ -23,9 +23,63 @@ class Transform {
 
 class SpriteObject : public Transform {
   private:
+    /* current sprite */
     SDL_Texture* texture{nullptr};
 
   public:
+    vec2<double> sprite_offset;
+    vec2<double> sprite_size;
+    double z_layer;
+    /*
+        x, y - position in world
+        sprite_w - sprite width
+        sprite_h - sprite height
+    */
+    SpriteObject(double x, double y, double sprite_w, double sprite_h, double z_layer) {
+        position = vec2(x, y);
+        sprite_size = vec2(sprite_w, sprite_h);
+        sprite_offset = vec2(0.0, 0.0);
+        this->z_layer = z_layer;
+    }
+    
+    /*
+        position - position in world
+        sprite_size - sprite width and height in world
+    */
+    SpriteObject(vec2<double> position, vec2<double> sprite_size, double z_layer) { // TODO: PUT SPRITE OFFSET INTO THE CONSTRUCTOR
+        this->position = position;
+        this->sprite_size = sprite_size;
+        sprite_offset = vec2(0.0, 0.0);
+        this->z_layer = z_layer;
+    
+    }
+    
+    /*
+        x, y - position in world
+        sprite_w - sprite width
+        sprite_h - sprite height
+        sprite_offset_x / sprite_offset_y - sprite offset from object position in world units
+        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+    */
+    SpriteObject(double x, double y, double sprite_w, double sprite_h, double sprite_offset_x, double sprite_offset_y, double z_layer) {
+        position = vec2(x, y);
+        sprite_size = vec2(sprite_w, sprite_h);
+        sprite_offset = vec2(sprite_offset_x, sprite_offset_y);
+        this->z_layer = z_layer;
+    }
+    
+    /*
+        position - position in world
+        sprite_size - sprite width and height in world
+        sprite_offset - sprite offset from object position in world units
+        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+    */
+    SpriteObject(vec2<double> position, vec2<double> sprite_size, vec2<double> sprite_offset, double z_layer) {
+        this->position = position;
+        this->sprite_size = sprite_size;
+        this->sprite_offset = sprite_offset;
+        this->z_layer = z_layer;
+    }
     ~SpriteObject() {
         if (texture) SDL_DestroyTexture(texture);
     }
@@ -42,64 +96,9 @@ class SpriteObject : public Transform {
     }
 
     SDL_Texture* getTexture() { return texture; }
-    /* current sprite */
-    vec2<double> sprite_offset;
-    vec2<double> sprite_size;
-    double z_layer;
-    /*
-        x, y - position in world
-        sprite_w - sprite width
-        sprite_h - sprite height
-    */
-    SpriteObject(double x, double y, double sprite_w, double sprite_h, double z_layer) {
-        position = vec2(x, y);
-        sprite_size = vec2(sprite_w, sprite_h);
-        sprite_offset = vec2(0.0, 0.0);
-        this->z_layer = z_layer;
-    }
-
-    /*
-        position - position in world
-        sprite_size - sprite width and height in world
-    */
-    SpriteObject(vec2<double> position, vec2<double> sprite_size, double z_layer) {
-        this->position = position;
-        this->sprite_size = sprite_size;
-        sprite_offset = vec2(0.0, 0.0);
-        this->z_layer = z_layer;
-
-    }
-
-    /*
-        x, y - position in world
-        sprite_w - sprite width
-        sprite_h - sprite height
-        sprite_offset_x / sprite_offset_y - sprite offset from object position in world units
-        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
-    */
-    SpriteObject(double x, double y, double sprite_w, double sprite_h, double sprite_offset_x, double sprite_offset_y, double z_layer) {
-        position = vec2(x, y);
-        sprite_size = vec2(sprite_w, sprite_h);
-        sprite_offset = vec2(sprite_offset_x, sprite_offset_y);
-        this->z_layer = z_layer;
-    }
-
-    /*
-        position - position in world
-        sprite_size - sprite width and height in world
-        sprite_offset - sprite offset from object position in world units
-        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
-    */
-    SpriteObject(vec2<double> position, vec2<double> sprite_size, vec2<double> sprite_offset, double z_layer) {
-        this->position = position;
-        this->sprite_size = sprite_size;
-        this->sprite_offset = sprite_offset;
-        this->z_layer = z_layer;
-    }
+    
 
 };
-
-
 
 class Scene {
   private:
@@ -127,11 +126,11 @@ class Scene {
     SpriteObject* addSpriteObject(vec2<double> position, const char* sprite_path, vec2<double> sprite_size, double z_layer) {
         if(renderer == nullptr) {
             std::cerr << "You must first bind the Scene to a Camera created by the Screen to upload textures using \"inline void engine::Camera::bindScene(engine::Scene *scene)\"" << std::endl;
-            return nullptr;
+            exit(1);
         }
         SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_layer);
         sprite_object->loadTexture(renderer, sprite_path);
-        sprite_objects.insert(sprite_object); // TODO: take z_order into account
+        sprite_objects.insert(sprite_object);
         return sprite_object;
     }
 
@@ -211,7 +210,6 @@ struct GUIElement {
     double z_order;
 };
 
-
 class GUIGroup {
   private:
     SDL_Renderer* renderer;
@@ -265,7 +263,6 @@ class GUIGroup {
         z_order - decides which elements are drawn on top of others
         Use this to stretch the element to a custom size, always use the other constructor if you want to keep the image aspect ratio
         note: dont use for now
-        TODO: make the aspect ratio non-dependent on screen and viewport size
      */
     // GUIElement* newElement(const char* path, vec2<double> position, vec2<double> size, double z_order) {
     //     GUIElement* element = new GUIElement;
@@ -285,7 +282,6 @@ class GUIGroup {
 
 };
 
-
 class Screen {
   private:
     SDL_Window* window{nullptr};
@@ -294,7 +290,6 @@ class Screen {
     double window_scale;
     vec2<uint32_t> size;
 
-    // TODO: add gui elements
     std::vector<CameraData> cameras{};
     std::vector<GUIGroup*> gui_groups{};
     /*
@@ -311,7 +306,6 @@ class Screen {
             static_cast<int>(size.x() * window_scale),
             static_cast<int>(size.y() * window_scale),
             SDL_WINDOW_MINIMIZED
-
         );
         if (window == NULL) {
             SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
@@ -472,7 +466,7 @@ class Screen {
 
             for( const auto &sprite_object : camera_data.camera->getScene()->sprite_objects ) {
                 /* get things in relation to the camera */
-                vec2<double> cam_object_position = camera_data.camera->getPointPosition( sprite_object->position + sprite_object->sprite_offset );
+                vec2<double> cam_object_position = camera_data.camera->getPointPosition( sprite_object->position + sprite_object->sprite_offset ); // TODO: change name to cam_sprite_position  
                 vec2<double> cam_object_size = vec2<double>(
                     sprite_object->sprite_size.x() / camera_data.camera->size.x(),
                     sprite_object->sprite_size.y() / camera_data.camera->size.y()
@@ -539,13 +533,10 @@ class Screen {
 
         SDL_RenderPresent(renderer);
     }
-
 };
 
 
 };
-
-
 
 
 #endif

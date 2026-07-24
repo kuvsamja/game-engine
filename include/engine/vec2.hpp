@@ -1,7 +1,6 @@
 #ifndef VEC3_HPP
 #define VEC3_HPP
 
-#include <vector>
 
 template <typename T> 
 class vec2 {

@@ -16,7 +16,7 @@ class SortedVector {
         sorted_vector.insert(it, element);
     }
 
-    std::vector<T> getVector() const {
+    std::vector<T>& getVector() const {
         return sorted_vector;
     }
 
