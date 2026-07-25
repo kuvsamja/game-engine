@@ -234,7 +234,7 @@ class CameraData {
   public:
     Camera* camera;
     /* space on screen, mapped 0 to 1 */
-    
+
     vec2<double> screen_viewport_position;
     vec2<double> screen_viewport_size;
 
@@ -247,13 +247,13 @@ class CameraData {
         this->screen_viewport_size = screen_viewport_size;
         glGenFramebuffers(1, &color_buffer_fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, color_buffer_fbo);
-    
+
         glGenTextures(1, &color_texture);
         glBindTexture(GL_TEXTURE_2D, color_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen_pixel_width * screen_viewport_size.x(), screen_pixel_height * screen_viewport_size.y(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        
+
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             std::cerr << "Framebuffer not complete" << std::endl;
@@ -334,12 +334,13 @@ class Screen {
 
     std::vector<CameraData*> cameras{};
     std::vector<GUIGroup*> gui_groups{};
-    
+
     GLuint quad_vao{0};
     GLuint quad_vbo{0};
 
-    Shader* texture_blit_shader{nullptr};
-    
+    Shader* sprite_draw_shader{nullptr};
+    Shader* gui_draw_shader{nullptr};
+
     /*
         Initializes GLFW window and the OpenGL context
     */
@@ -386,26 +387,30 @@ class Screen {
             0.0f, 1.0f, 0.0f, 1.0f,
             1.0f, 1.0f, 1.0f, 1.0f,
         };
-    
+
         glGenVertexArrays(1, &quad_vao);
         glGenBuffers(1, &quad_vbo);
-    
+
         glBindVertexArray(quad_vao);
         glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
         glBufferData(GL_ARRAY_BUFFER, sizeof(quad_verts), quad_verts, GL_STATIC_DRAW);
-    
+
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
         glEnableVertexAttribArray(1);
-    
+
         glBindVertexArray(0);
     }
 
     void makeShaders() {
-        texture_blit_shader = new Shader(
-            "shaders/texture-blitting/vertex.gl",
-            "shaders/texture-blitting/fragment.gl"
+        sprite_draw_shader = new Shader(
+            "shaders/sprite_drawing/vertex.gl",
+            "shaders/sprite_drawing/fragment.gl"
+        );
+        gui_draw_shader = new Shader(
+            "shaders/gui_drawing/vertex.gl",
+            "shaders/gui_drawing/fragment.gl"
         );
     }
 
@@ -415,10 +420,10 @@ class Screen {
     */
     void addCamera(Camera* camera, vec2<double> screen_viewport_position, vec2<double> screen_viewport_size) {
         CameraData* camera_data = new CameraData(
-            camera, 
+            camera,
             width(),
             height(),
-            screen_viewport_position, 
+            screen_viewport_position,
             screen_viewport_size
         );
         cameras.push_back(camera_data);
@@ -432,7 +437,7 @@ class Screen {
         width/height - pixel width and height of the window
         window_scale - scales a window up or down by a factor
     */
-    Screen(const char* name, uint32_t width, uint32_t height, double window_scale) { // TODO: the quad thing opengl
+    Screen(const char* name, uint32_t width, uint32_t height, double window_scale) {
         size.x() = width;
         size.y() = height;
         this->window_scale = window_scale;
@@ -499,14 +504,14 @@ class Screen {
     void swapBuffers() {
         glfwSwapBuffers(window);
     }
-    
+
     /*
         Polls window events
     */
     void pollEvents() {
         glfwPollEvents();
     }
-    
+
     /*
         Returns true when user clicks X button
     */
@@ -536,35 +541,35 @@ class Screen {
             );
             glClear(GL_COLOR_BUFFER_BIT);
 
-            texture_blit_shader->use();
+            sprite_draw_shader->use();
 
-            texture_blit_shader->setVec2(
+            sprite_draw_shader->setVec2(
                 "camera_world_position",
                 camera_data->camera->position
             );
-            texture_blit_shader->setVec2(
+            sprite_draw_shader->setVec2(
                 "camera_world_size",
                 camera_data->camera->size
             );
 
             for( const auto &sprite_object : camera_data->camera->getScene()->sprite_objects ) {
                 /* vertex shader uniforms */
-                texture_blit_shader->setVec2(
+                sprite_draw_shader->setVec2(
                     "sprite_position",
                     sprite_object->position
                 );
-                texture_blit_shader->setVec2(
+                sprite_draw_shader->setVec2(
                     "sprite_offset",
                     sprite_object->sprite_offset
                 );
-                texture_blit_shader->setVec2(
+                sprite_draw_shader->setVec2(
                     "sprite_size",
                     sprite_object->sprite_size
                 );
                 /* fragment shader uniform */
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, sprite_object->getSprite());
-                texture_blit_shader->setInt("sprite_texture", 0);
+                sprite_draw_shader->setInt("sprite_texture", 0);
 
 
                 glBindVertexArray(quad_vao);
@@ -577,48 +582,59 @@ class Screen {
             int screen_h = static_cast<int>(camera_data->screen_viewport_size.y() * height());
             glViewport(screen_x, screen_y, screen_w, screen_h);
 
-            texture_blit_shader->setVec2("sprite_position", camera_data->camera->position);
-            texture_blit_shader->setVec2("sprite_offset", vec2<double>(0.0, 0.0));
-            texture_blit_shader->setVec2("sprite_size", camera_data->camera->size);
-            
+            sprite_draw_shader->setVec2("sprite_position", camera_data->camera->position);
+            sprite_draw_shader->setVec2("sprite_offset", vec2<double>(0.0, 0.0));
+            sprite_draw_shader->setVec2("sprite_size", camera_data->camera->size);
+
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, camera_data->color_texture);
-            texture_blit_shader->setInt("sprite_texture", 0);
-            
+            sprite_draw_shader->setInt("sprite_texture", 0);
+
             glBindVertexArray(quad_vao);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
     }
 
-    // void drawGUI() {
-    //     SDL_SetRenderTarget(renderer, framebuffer);
+    void drawGUI() {
+        gui_draw_shader->use();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        for(auto gui_group : gui_groups) {
+            int viewport_pixel_x = static_cast<int>(width() * gui_group->viewport_position.x());
+            int viewport_pixel_y = static_cast<int>(height() * gui_group->viewport_position.y());
+            int viewport_pixel_width = static_cast<int>(width() * gui_group->viewport_size.x());
+            int viewport_pixel_height = static_cast<int>(height() * gui_group->viewport_size.y());
+            glViewport(viewport_pixel_x, viewport_pixel_y, viewport_pixel_width, viewport_pixel_height);
 
-    //     for(auto gui_group : gui_groups) {
-    //         SDL_Rect viewport {
-    //             static_cast<int>(gui_group->viewport_position.x() * width()),
-    //             static_cast<int>(gui_group->viewport_position.y() * height()),
-    //             static_cast<int>(gui_group->viewport_size.x() * width()),
-    //             static_cast<int>(gui_group->viewport_size.y() * height())
-    //         };
-    //         SDL_SetRenderViewport(renderer, &viewport);
+            for(auto gui_texture_element : gui_group->gui_texture_elements) {
+                float element_pixel_width = gui_texture_element->width * gui_group->viewport_size.x() * width();
+                float element_pixel_height = element_pixel_width * gui_texture_element->aspect_ratio;
 
-    //         for(auto gui_texture_element : gui_group->gui_texture_elements) {
-    //             float pixel_width = gui_texture_element->width * viewport.w;
-    //             float pixel_height = pixel_width * gui_texture_element->aspect_ratio;
-
-    //             SDL_FRect element_location_data {
-    //                 static_cast<float>(gui_texture_element->position.x() * viewport.w),
-    //                 static_cast<float>(gui_texture_element->position.y() * viewport.h),
-    //                 pixel_width,
-    //                 pixel_height
-    //             };
-
-    //             SDL_RenderTexture(renderer, gui_texture_element->texture, NULL, &element_location_data);
-
-    //         }
-    //         SDL_SetRenderViewport(renderer, NULL);
-    //     }
-    // }
+                /* vertex shader uniforms */
+                gui_draw_shader->setVec2(
+                    "pixel_sprite_position",
+                    vec2(
+                        gui_texture_element->position.x() * viewport_pixel_width,
+                        gui_texture_element->position.y() * viewport_pixel_height
+                    )
+                );
+                gui_draw_shader->setVec2(
+                    "pixel_sprite_size",
+                    vec2<double>(element_pixel_width, element_pixel_height)
+                );
+                gui_draw_shader->setVec2(
+                    "pixel_viewport_size",
+                    vec2<double>(viewport_pixel_width, viewport_pixel_height)
+                );
+                /* fragment shader uniforms */
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, gui_texture_element->texture);
+                gui_draw_shader->setInt("sprite_texture", 0);
+                
+                glBindVertexArray(quad_vao);
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            }
+        }
+    }
 
     void draw() {
 
@@ -627,10 +643,9 @@ class Screen {
         //     case 1: SDL_SetTextureScaleMode(framebuffer, SDL_SCALEMODE_LINEAR); break;
         // }
 
-
         drawSprites();
-        // drawGUI();
-        
+        drawGUI();
+
     }
 };
 

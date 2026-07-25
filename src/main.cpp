@@ -43,7 +43,7 @@ int main() {
         vec2<double>(1, 1)
     );
 
-    gui_group0->newElement("assets/gui-elements/mask.png", vec2<double>(0.1, 0.1), 0.04, 0);
+    gui_group0->newElement("assets/gui-elements/mask.png", vec2<double>(0, 0), 0.04, 0);
     gui_group0->newElement("assets/gui-elements/mask.png", vec2<double>(0.15, 0.1), 0.04, 0);
     gui_group0->newElement("assets/gui-elements/mask.png", vec2<double>(0.2, 0.1), 0.04, 0);
     gui_group0->newElement("assets/gui-elements/mask.png", vec2<double>(0.25, 0.1), 0.04, 0);
