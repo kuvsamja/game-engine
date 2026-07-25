@@ -13,12 +13,11 @@
 - [ ] audio stuff
 - [ ] make lighting
 - [ ] try making a way to prevent mixels when making pixelart
-- [ ] switch to opengl ):
+- [x] switch to opengl ):
 - [ ] add proper window resizing handling
-- [ ] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
+- [x] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
 - [ ] mabye change all doubles to floats
 - [ ] expose a custom shader maker api
-- [ ] fix window scaling
 
 ### lighting:
 - [ ] depth map
@@ -31,6 +30,7 @@
 - [ ] make sprites autodetect aspect ratio
 - [ ] make camera size and viewport aspect ratio sync
 - [ ] make shader.hpp use c++ file streams
+- [ ] fix window scaling
 
 ## FURTHER FEATURES
 - [ ] Add configurable custom drawing logic

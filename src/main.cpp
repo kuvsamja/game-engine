@@ -2,7 +2,7 @@
 
 
 int main() {
-    engine::Screen screen("name", 800, 400, 1);
+    engine::Screen screen("name", 1600, 800, 1);
     screen.has_anti_aliasing = 1;
     engine::Camera* camera0 = screen.createCamera(
         vec2<double>(0, 0),
