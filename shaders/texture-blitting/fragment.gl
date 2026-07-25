@@ -1,0 +1,14 @@
+#version 330 core
+
+in vec2 frag_uv;
+
+uniform sampler2D sprite_texture;
+
+out vec4 out_color;
+
+
+void main() {
+    vec4 pixel_color = texture(sprite_texture, frag_uv);
+    if (pixel_color.a < 0.01) discard;
+    out_color = pixel_color;
+}

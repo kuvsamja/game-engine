@@ -1,0 +1,28 @@
+#version 330 core
+
+layout(location = 0) in vec2 in_corner;
+layout(location = 1) in vec2 in_uv;
+
+uniform vec2 camera_world_position;
+uniform vec2 camera_world_size;
+uniform vec2 sprite_position;
+uniform vec2 sprite_offset;
+uniform vec2 sprite_size;
+
+out vec2 frag_uv;
+
+vec2 getPointPosition(vec2 point, vec2 cam_pos, vec2 cam_size) {
+    vec2 translated_point = point - cam_pos;
+    vec2 screen_point_position = translated_point / cam_size;
+    return screen_point_position;
+}
+
+void main() {
+    vec2 sprite_world_position = sprite_position + sprite_offset + in_corner * sprite_size;
+    vec2 screen_point_position = getPointPosition(sprite_world_position, camera_world_position, camera_world_size);
+
+    vec2 ndc = screen_point_position * 2.0 - 1.0;
+
+    gl_Position = vec4(ndc.x, -ndc.y, 0.0, 1.0);
+    frag_uv = in_uv;
+}

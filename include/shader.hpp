@@ -2,12 +2,13 @@
 #define SHADER_HPP
 
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 
 #include <string>
-#include <fstream>
-#include <sstream>
 #include <iostream>
 #include <string>
+
+#include <vec2.hpp>
 
 class Shader {
   public:
@@ -36,7 +37,7 @@ class Shader {
             std::cerr << "ERROR: reading fragment shader file failed" << std::endl;
             exit(-1);
         }
-        while(!feof(fragment_shader_file)) {
+        while(!feof(fragment_shader_file)) { // TODO: fix off by one error when EOF is at the end of *_shader_text
             fragment_shader_text += fgetc(fragment_shader_file);
         }
         fclose(fragment_shader_file);
@@ -56,6 +57,7 @@ class Shader {
         if(!success) {
             glGetShaderInfoLog(vertex, 512, NULL, info_log);
             std::cerr << "ERROR: vertex shader compilation failed\n" << info_log << std::endl;
+            exit(-1);
         };
 
         // // fragment
@@ -66,6 +68,7 @@ class Shader {
         if(!success) {
             glGetShaderInfoLog(fragment, 512, NULL, info_log);
             std::cerr << "ERROR: fragment shader compilation failed\n" << info_log << std::endl;
+            exit(-1);
         }
 
         // // program
@@ -77,11 +80,16 @@ class Shader {
         if(!success){
             glGetProgramInfoLog(ID, 512, NULL, info_log);
             std::cerr << "ERROR: shader program compilation failed\n" << info_log << std::endl;
+            exit(-1);
         }
 
         // delete the linked shaders
         glDeleteShader(vertex);
         glDeleteShader(fragment);
+    }
+
+    ~Shader() {
+        glDeleteProgram(ID);
     }
 
     void use() {
@@ -102,6 +110,9 @@ class Shader {
     }
     void setVec2(const std::string &name, float x, float y) const {
         glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y); 
+    }
+    void setVec2(const std::string &name, vec2<double> vec) const {
+        glUniform2f(glGetUniformLocation(ID, name.c_str()), vec.x(), vec.y()); 
     }
     void setVec3(const std::string &name, const glm::vec3 &value) const { 
         glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]); 
@@ -128,6 +139,6 @@ class Shader {
 };
 
 
-
+// TODO: maybe use cpp file streams
 
 #endif
