@@ -13,6 +13,15 @@
 - [ ] audio stuff
 - [ ] make lighting
 - [ ] try making a way to prevent mixels when making pixelart
+- [ ] switch to opengl ):
+- [ ] add proper window resizing handling
+
+### lighting:
+- [ ] depth map
+- [ ] various buffers
+- [ ] lighting
+- [ ] depth map stored in png
+- [ ] make lighting be a different resolution for performance optimization
 
 ### nemanjica:
 - [ ] make sprites autodetect aspect ratio
@@ -27,6 +36,7 @@
 - [ ] make scenes load from files
 - [ ] rotations
 - [ ] make multiple sprites use the same texture for performance
+- [ ] move to the gpu
 
 ## goal
 - [ ] make a gui editor

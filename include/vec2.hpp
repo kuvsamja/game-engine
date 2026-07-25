@@ -1,5 +1,5 @@
-#ifndef VEC3_HPP
-#define VEC3_HPP
+#ifndef VEC2_HPP
+#define VEC2_HPP
 
 
 template <typename T> 
@@ -79,10 +79,10 @@ inline vec2<T> operator/(const vec2<T>& v, T t) {
     return (1/t) * v;
 }
 
-template <typename T>
-inline vec2<T> abs(const vec2<T>& v) {
-    return vec2<T>(std::abs(v.x()), std::abs(v.y()));
-}
+// template <typename T>
+// inline vec2<T> abs(const vec2<T>& v) {
+//     return vec2<T>(std::abs(v.x()), std::abs(v.y()));
+// }
 
 
 
