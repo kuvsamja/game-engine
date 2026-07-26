@@ -18,7 +18,7 @@
 - [x] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
 - [ ] mabye change all doubles to floats
 - [ ] expose a custom shader maker api
-
+- [ ] add transparent textures
 ### lighting:
 - [ ] depth map
 - [ ] various buffers

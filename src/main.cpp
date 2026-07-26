@@ -25,14 +25,14 @@ int main() {
     // camera1->bindScene(scene);
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
-        "assets/sprites/hornet/colors.png",
+        "assets/sprites/hornet/depth_map.png",
         vec2<double>(10, 10),
         vec2<double>(30, 40),
         1
     );
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
-        "assets/sprites/hornet/colors.png",
+        "assets/sprites/hornet/depth_map.png",
         vec2<double>(20, 10),
         vec2<double>(30, 40),
         0

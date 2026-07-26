@@ -61,7 +61,7 @@ class SpriteObject : public Transform {
     vec2<double> sprite_offset;
     vec2<double> sprite_size;
     double z_layer;
-    bool ignore_light{false};
+    bool has_normal_map{true};
     /*
         x, y - position in world
         sprite_w - sprite width
@@ -118,6 +118,7 @@ class SpriteObject : public Transform {
     }
 
     /*
+        pass nullptr to normal_map_path to disable normal map lighting for this object
         normal map image and sprite image must be the same resulution TODO: make them not need to be same resolution
         Load an image as the sprite
     */
@@ -127,6 +128,10 @@ class SpriteObject : public Transform {
         if (!sprite) {
             std::cerr << "Failed to load sprite texture from the path: \"" << sprite_image_path << "\"" << std::endl;
             exit(1);
+        }
+        if(normal_map_path == nullptr) {
+            has_normal_map = false;
+            return;
         }
         int normal_map_width, normal_map_height, normal_map_channels;
         loadGLTexture(&normal_map, normal_map_path, &normal_map_width, &normal_map_height, &normal_map_channels);
@@ -143,7 +148,12 @@ class SpriteObject : public Transform {
 
 };
 
+class PointLight : public Transform { // TODO: add max effect distance for performance
+  public:
+    double intenisty;
+    double z;
 
+};
 
 class Scene {
   private:
@@ -231,30 +241,18 @@ class Camera {
 };
 
 class CameraData {
-  public:
-    Camera* camera;
-    /* space on screen, mapped 0 to 1 */
+  private:
+    void FBOSetup(GLuint& fbo, GLuint& texture, int pixel_width, int pixel_height, GLuint internal_format, GLenum format, GLenum type) {
+        glGenFramebuffers(1, &fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    vec2<double> screen_viewport_position;
-    vec2<double> screen_viewport_size;
-
-    GLuint color_buffer_fbo;
-    GLuint color_texture;
-    CameraData(Camera* camera, int screen_pixel_width, int screen_pixel_height,
-        vec2<double> screen_viewport_position, vec2<double> screen_viewport_size){
-        this->camera = camera;
-        this->screen_viewport_position = screen_viewport_position;
-        this->screen_viewport_size = screen_viewport_size;
-        glGenFramebuffers(1, &color_buffer_fbo);
-        glBindFramebuffer(GL_FRAMEBUFFER, color_buffer_fbo);
-
-        glGenTextures(1, &color_texture);
-        glBindTexture(GL_TEXTURE_2D, color_texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen_pixel_width * screen_viewport_size.x(), screen_pixel_height * screen_viewport_size.y(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, internal_format, pixel_width, pixel_height, 0, format, type, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             std::cerr << "Framebuffer not complete" << std::endl;
             exit(1);
@@ -262,10 +260,83 @@ class CameraData {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    ~CameraData() {
-        glDeleteTextures(1, &color_texture);
-        glDeleteFramebuffers(1, &color_buffer_fbo);
+
+    void GBufferSetup(GLuint& fbo, GLuint& color_tex, GLuint& normal_tex, GLuint& depth_tex,
+                       GLuint& ignore_light_tex, int pixel_width, int pixel_height) {
+        glGenFramebuffers(1, &fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+        auto attach = [&](GLuint& tex, GLenum attachment, GLint internal_format, GLenum format, GLenum type) {
+            glGenTextures(1, &tex);
+            glBindTexture(GL_TEXTURE_2D, tex);
+            glTexImage2D(GL_TEXTURE_2D, 0, internal_format, pixel_width, pixel_height, 0, format, type, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, tex, 0);
+        };
+
+        attach(color_tex,        GL_COLOR_ATTACHMENT0, GL_RGBA8,   GL_RGBA, GL_UNSIGNED_BYTE);
+        attach(normal_tex,       GL_COLOR_ATTACHMENT1, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+        attach(depth_tex,        GL_COLOR_ATTACHMENT2, GL_R32F,    GL_RED,  GL_FLOAT);
+        attach(ignore_light_tex, GL_COLOR_ATTACHMENT3, GL_R8,      GL_RED,  GL_UNSIGNED_BYTE);
+
+        GLenum draw_buffers[] = {
+            GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+            GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3
+        };
+        glDrawBuffers(4, draw_buffers);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Gbuffer FBO not complete" << std::endl;
+            exit(1);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+  public:
+    Camera* camera;
+
+    vec2<double> screen_viewport_position;
+    vec2<double> screen_viewport_size;
+
+    GLuint framebuffer_fbo;
+    GLuint framebuffer_texture; // vec4 uint8
+    GLuint light_fbo;
+    GLuint light_texture;  // vec4 float full range
+
+    GLuint gbuffer_fbo;
+    GLuint color_texture;  // vec4 float 0-1
+    GLuint normal_map_texture;  // vec4 float 0-1
+    GLuint depth_texture;  // float full range
+    GLuint ignore_light_texture;  // bool
+
+
+    CameraData(Camera* camera, int screen_pixel_width, int screen_pixel_height,
+        vec2<double> screen_viewport_position, vec2<double> screen_viewport_size){
+        this->camera = camera;
+        this->screen_viewport_position = screen_viewport_position;
+        this->screen_viewport_size = screen_viewport_size;
+
+        int pixel_buffer_width = screen_pixel_width * screen_viewport_size.x();
+        int pixel_buffer_height = screen_pixel_height * screen_viewport_size.y();
+
+        FBOSetup(framebuffer_fbo, framebuffer_texture, pixel_buffer_width, pixel_buffer_height, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
+        FBOSetup(light_fbo, light_texture, pixel_buffer_width, pixel_buffer_height, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+        GBufferSetup(gbuffer_fbo, color_texture, normal_map_texture, depth_texture, ignore_light_texture, pixel_buffer_width, pixel_buffer_height);
+    }
+
+    ~CameraData() {
+        glDeleteTextures(1, &framebuffer_texture);
+        glDeleteFramebuffers(1, &framebuffer_fbo);
+        glDeleteTextures(1, &color_texture);
+        glDeleteTextures(1, &normal_map_texture);
+        glDeleteTextures(1, &depth_texture);
+        glDeleteTextures(1, &ignore_light_texture);
+        glDeleteTextures(1, &light_texture);
+        glDeleteFramebuffers(1, &light_fbo);
+        glDeleteFramebuffers(1, &gbuffer_fbo);
+    }
+
 };
 
 struct GUIElement {
@@ -340,6 +411,7 @@ class Screen {
 
     Shader* sprite_draw_shader{nullptr};
     Shader* gui_draw_shader{nullptr};
+    Shader* gbuffer_shader{nullptr};
 
     /*
         Initializes GLFW window and the OpenGL context
@@ -352,9 +424,10 @@ class Screen {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#ifdef __APPLE__
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-#endif
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+        #ifdef __APPLE__
+                glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+        #endif
         window = glfwCreateWindow(
             static_cast<int>(size.x()),
             static_cast<int>(size.y()),
@@ -373,10 +446,20 @@ class Screen {
             std::cerr << "gladLoadGLLoader failed" << std::endl;
             exit(1);
         }
+
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity,
+                                  GLsizei length, const char* message, const void* userParam) {
+            std::cerr << "[GL DEBUG] " << message << std::endl;
+        }, nullptr);
+
         glViewport(0, 0, static_cast<int>(size.x()), static_cast<int>(size.y()));
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
     }
 
     void createQuad() {
@@ -411,6 +494,10 @@ class Screen {
         gui_draw_shader = new Shader(
             "shaders/gui_drawing/vertex.gl",
             "shaders/gui_drawing/fragment.gl"
+        );
+        gbuffer_shader = new Shader(
+            "shaders/gbuffer/vertex.gl",
+            "shaders/gbuffer/fragment.gl"
         );
     }
 
@@ -504,19 +591,87 @@ class Screen {
     void swapBuffers() {
         glfwSwapBuffers(window);
     }
-
     /*
         Polls window events
     */
     void pollEvents() {
         glfwPollEvents();
     }
-
     /*
         Returns true when user clicks X button
     */
     bool shouldClose() {
         return glfwWindowShouldClose(window);
+    }
+
+
+    void clearGBuffer(CameraData* camera_data) {
+        glBindFramebuffer(GL_FRAMEBUFFER, camera_data->gbuffer_fbo);
+        float color_clear[4] = {
+            camera_data->camera->bg_color.r / 255.0f,
+            camera_data->camera->bg_color.g / 255.0f,
+            camera_data->camera->bg_color.b / 255.0f,
+            camera_data->camera->bg_color.a / 255.0f
+        };
+        glClearBufferfv(GL_COLOR, 0, color_clear);
+
+        float normal_map_clear[4] = {0, 0, 1, 0};
+        glClearBufferfv(GL_COLOR, 1, normal_map_clear);
+
+        float depth_map_clear[4] = {9999, 0, 0, 0};
+        glClearBufferfv(GL_COLOR, 2, depth_map_clear);
+
+        float ignore_light_clear[4] = {1, 0, 0, 0};
+        glClearBufferfv(GL_COLOR, 3, ignore_light_clear);
+
+    }
+
+    void drawGBuffer(CameraData* camera_data) {
+        glBindFramebuffer(GL_FRAMEBUFFER, camera_data->gbuffer_fbo);
+        int pixel_width = static_cast<int>(width() * camera_data->screen_viewport_size.x());
+        int pixel_height = static_cast<int>(height() * camera_data->screen_viewport_size.y());
+        glViewport(0, 0, pixel_width, pixel_height);
+
+        clearGBuffer(camera_data);
+        gbuffer_shader->use();
+
+        gbuffer_shader->setVec2(
+            "camera_world_position",
+            camera_data->camera->position
+        );
+        gbuffer_shader->setVec2(
+            "camera_world_size",
+            camera_data->camera->size
+        );
+
+        for( const auto &sprite_object : camera_data->camera->getScene()->sprite_objects ) {
+            /* vertex shader uniforms */
+            gbuffer_shader->setVec2(
+                "sprite_position",
+                sprite_object->position
+            );
+            gbuffer_shader->setVec2(
+                "sprite_offset",
+                sprite_object->sprite_offset
+            );
+            gbuffer_shader->setVec2(
+                "sprite_size",
+                sprite_object->sprite_size
+            );
+            /* fragment shader uniform */
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, sprite_object->getSprite());
+            gbuffer_shader->setInt("sprite_texture", 0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, sprite_object->getNormalMap());
+            gbuffer_shader->setInt("sprite_normal_map", 1);
+            gbuffer_shader->setBool("has_normal_map", sprite_object->has_normal_map);
+            gbuffer_shader->setFloat("z", sprite_object->z_layer);
+
+
+            glBindVertexArray(quad_vao);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
     }
 
     /*
@@ -528,53 +683,8 @@ class Screen {
                 std::cerr << "Please bind a scene to the camera before drawing" << std::endl;
                 exit(1);
             }
-            glBindFramebuffer(GL_FRAMEBUFFER, camera_data->color_buffer_fbo);
-            int pixel_width = static_cast<int>(width() * camera_data->screen_viewport_size.x());
-            int pixel_height = static_cast<int>(height() * camera_data->screen_viewport_size.y());
-            glViewport(0, 0, pixel_width, pixel_height);
+            drawGBuffer(camera_data);
 
-            glClearColor(
-                camera_data->camera->bg_color.r,
-                camera_data->camera->bg_color.g,
-                camera_data->camera->bg_color.b,
-                camera_data->camera->bg_color.a
-            );
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            sprite_draw_shader->use();
-
-            sprite_draw_shader->setVec2(
-                "camera_world_position",
-                camera_data->camera->position
-            );
-            sprite_draw_shader->setVec2(
-                "camera_world_size",
-                camera_data->camera->size
-            );
-
-            for( const auto &sprite_object : camera_data->camera->getScene()->sprite_objects ) {
-                /* vertex shader uniforms */
-                sprite_draw_shader->setVec2(
-                    "sprite_position",
-                    sprite_object->position
-                );
-                sprite_draw_shader->setVec2(
-                    "sprite_offset",
-                    sprite_object->sprite_offset
-                );
-                sprite_draw_shader->setVec2(
-                    "sprite_size",
-                    sprite_object->sprite_size
-                );
-                /* fragment shader uniform */
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, sprite_object->getSprite());
-                sprite_draw_shader->setInt("sprite_texture", 0);
-
-
-                glBindVertexArray(quad_vao);
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-            }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             int screen_x = static_cast<int>(camera_data->screen_viewport_position.x() * width());
             int screen_y = static_cast<int>(camera_data->screen_viewport_position.y() * height());
@@ -587,7 +697,7 @@ class Screen {
             sprite_draw_shader->setVec2("sprite_size", camera_data->camera->size);
 
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, camera_data->color_texture);
+            glBindTexture(GL_TEXTURE_2D, camera_data->normal_map_texture);
             sprite_draw_shader->setInt("sprite_texture", 0);
 
             glBindVertexArray(quad_vao);
@@ -629,7 +739,7 @@ class Screen {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, gui_texture_element->texture);
                 gui_draw_shader->setInt("sprite_texture", 0);
-                
+
                 glBindVertexArray(quad_vao);
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             }
