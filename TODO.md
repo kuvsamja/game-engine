@@ -19,6 +19,8 @@
 - [ ] mabye change all doubles to floats
 - [ ] expose a custom shader maker api
 - [ ] add transparent textures
+- [ ] some uniform caching thing
+
 ### lighting:
 - [ ] depth map
 - [ ] various buffers

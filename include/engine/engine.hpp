@@ -152,6 +152,21 @@ class PointLight : public Transform { // TODO: add max effect distance for perfo
   public:
     double intenisty;
     double z;
+    RGBAColor color;
+    double linear_dropoff;
+    double quadratic_dropoff;
+
+    PointLight(vec3<double> position, double intensity, vec3<int> color, double linear_dropoff, double quadratic_dropoff) {
+        this->position = vec2<double>(position.x(), position.y());
+        z = position.z();
+        this->intenisty = intensity;
+        this->color.r = color.x();
+        this->color.g = color.y();
+        this->color.b = color.z();
+        this->color.a = 255;
+        this->linear_dropoff = linear_dropoff;
+        this->quadratic_dropoff = quadratic_dropoff;
+    }
 
 };
 
@@ -163,6 +178,7 @@ class Scene {
 
   public:
     SortedVector<SpriteObject*> sprite_objects{compareZ};
+    std::vector<PointLight*> point_lights{};
 
     ~Scene() {
         for(auto sprite_object : sprite_objects) {
@@ -183,7 +199,18 @@ class Scene {
         sprite_objects.insert(sprite_object);
         return sprite_object;
     }
-
+    // TODO: write function description
+    PointLight* addPointLight(vec3<double> position, double intensity, vec3<int> color, double linear_dropoff, double quadratic_dropoff) {
+        PointLight* point_light = new PointLight(
+            position,
+            intensity,
+            color,
+            linear_dropoff,
+            quadratic_dropoff
+        );
+        point_lights.push_back(point_light);
+        return point_light;
+    }
 
 
 };
@@ -412,6 +439,7 @@ class Screen {
     Shader* sprite_draw_shader{nullptr};
     Shader* gui_draw_shader{nullptr};
     Shader* gbuffer_shader{nullptr};
+    Shader* light_buffer_shader{nullptr};
 
     /*
         Initializes GLFW window and the OpenGL context
@@ -451,7 +479,9 @@ class Screen {
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity,
                                   GLsizei length, const char* message, const void* userParam) {
-            std::cerr << "[GL DEBUG] " << message << std::endl;
+            GLint current_program;
+            glGetIntegerv(GL_CURRENT_PROGRAM, &current_program);
+            std::cerr << "[GL DEBUG] (program=" << current_program << ") " << message << std::endl;
         }, nullptr);
 
         glViewport(0, 0, static_cast<int>(size.x()), static_cast<int>(size.y()));
@@ -498,6 +528,10 @@ class Screen {
         gbuffer_shader = new Shader(
             "shaders/gbuffer/vertex.gl",
             "shaders/gbuffer/fragment.gl"
+        );
+        light_buffer_shader = new Shader(
+            "shaders/light_buffer/vertex.gl",
+            "shaders/light_buffer/fragment.gl"
         );
     }
 
@@ -674,6 +708,76 @@ class Screen {
         }
     }
 
+    void drawLightBuffer(CameraData* camera_data) {
+        glBindFramebuffer(GL_FRAMEBUFFER, camera_data->light_fbo);
+        int pixel_width = static_cast<int>(width() * camera_data->screen_viewport_size.x());
+        int pixel_height = static_cast<int>(height() * camera_data->screen_viewport_size.y());
+        glViewport(0, 0, pixel_width, pixel_height);
+
+        glClearColor(0.05f, 0.05f, 0.07f, 1.0f); // TODO: make customiced ambient light intenisty
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+
+        light_buffer_shader->use();
+
+        // fragment shader uniforms
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, camera_data->normal_map_texture);
+        light_buffer_shader->setInt("normal_map", 0);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, camera_data->depth_texture);
+        light_buffer_shader->setInt("depth_map", 1);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, camera_data->ignore_light_texture);
+        light_buffer_shader->setInt("ignore_light_tex", 2);
+
+
+        light_buffer_shader->setVec2(
+            "camera_world_position",
+            camera_data->camera->position
+        );
+        light_buffer_shader->setVec2(
+            "camera_world_size",
+            camera_data->camera->size
+        );
+
+        for(auto& point_light : camera_data->camera->getScene()->point_lights) {
+            light_buffer_shader->setVec3(
+                "light_position",
+                point_light->position.x(),
+                point_light->position.y(),
+                point_light->z
+            );
+            light_buffer_shader->setVec3(
+                "light_color",
+                vec3<double>(
+                    static_cast<double>(point_light->color.r) / 255,
+                    static_cast<double>(point_light->color.g) / 255,
+                    static_cast<double>(point_light->color.b) / 255
+                )
+            );
+            light_buffer_shader->setFloat(
+                "light_intenisty",
+                point_light->intenisty
+            );
+            light_buffer_shader->setFloat(
+                "light_linear_dropoff",
+                point_light->linear_dropoff
+            );
+            light_buffer_shader->setFloat(
+                "light_quadratic_dropoff",
+                point_light->quadratic_dropoff
+            );
+
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        }
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+
     /*
         Draws the scenes bound to cameras on the screen
     */
@@ -684,7 +788,9 @@ class Screen {
                 exit(1);
             }
             drawGBuffer(camera_data);
-
+            drawLightBuffer(camera_data);
+            
+            sprite_draw_shader->use();
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             int screen_x = static_cast<int>(camera_data->screen_viewport_position.x() * width());
             int screen_y = static_cast<int>(camera_data->screen_viewport_position.y() * height());
@@ -692,12 +798,15 @@ class Screen {
             int screen_h = static_cast<int>(camera_data->screen_viewport_size.y() * height());
             glViewport(screen_x, screen_y, screen_w, screen_h);
 
+            sprite_draw_shader->setVec2("camera_world_position", camera_data->camera->position);
+            sprite_draw_shader->setVec2("camera_world_size", camera_data->camera->size);
+            
             sprite_draw_shader->setVec2("sprite_position", camera_data->camera->position);
             sprite_draw_shader->setVec2("sprite_offset", vec2<double>(0.0, 0.0));
             sprite_draw_shader->setVec2("sprite_size", camera_data->camera->size);
 
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, camera_data->normal_map_texture);
+            glBindTexture(GL_TEXTURE_2D, camera_data->light_texture);
             sprite_draw_shader->setInt("sprite_texture", 0);
 
             glBindVertexArray(quad_vao);

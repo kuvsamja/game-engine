@@ -37,6 +37,8 @@ int main() {
         vec2<double>(30, 40),
         0
     );
+
+    scene->addPointLight(vec3<double>(10, 10, 10), 2, vec3<int>(100, 255, 255), 0.01, 0.01);
     
     engine::GUIGroup* gui_group0 = screen.createGUIGroup(
         vec2<double>(0, 0),
