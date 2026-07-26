@@ -1,0 +1,43 @@
+#version 330 core
+
+in vec2 frag_uv;
+
+
+uniform sampler2D normal_map;
+uniform sampler2D depth_map;
+uniform sampler2D ignore_light_tex;
+
+uniform vec2 camera_world_position;
+uniform vec2 camera_world_size;
+
+uniform float light_intenisty;
+uniform vec3 light_color;
+uniform vec3 light_position;
+uniform float light_linear_dropoff;
+uniform float light_quadratic_dropoff;
+
+
+out vec4 out_light_color;
+
+void main() {
+    float ignore = texture(ignore_light_tex, frag_uv).r;
+    if(ignore > 0.5) {
+        out_light_color = vec4(0, 0, 0, 0);
+        return;
+    }
+    vec3 normal_vector = normalize(texture(normal_map, frag_uv).rgb);
+    float point_world_z = texture(depth_map, frag_uv).r;
+
+    vec3 point_world_position = vec3(frag_uv * camera_world_size + camera_world_position, point_world_z);
+    
+    vec3 point_to_point_light_vector = light_position - point_world_position;
+
+    float dist = length(point_to_point_light_vector);
+    point_to_point_light_vector = point_to_point_light_vector / max(dist, 0.0001);
+
+    float attenuation = light_intenisty / (1 + light_linear_dropoff * dist + light_quadratic_dropoff * dist * dist);
+
+    out_light_color = vec4(attenuation * max(dot(point_to_point_light_vector, normal_vector), 0) * light_color, 0);
+    
+    
+}

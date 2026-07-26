@@ -26,9 +26,10 @@ int main() {
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
         "assets/sprites/hornet/depth_map.png",
+        // nullptr,
         vec2<double>(10, 10),
         vec2<double>(30, 40),
-        1
+        0
     );
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
@@ -38,7 +39,7 @@ int main() {
         0
     );
 
-    scene->addPointLight(vec3<double>(10, 10, 10), 2, vec3<int>(100, 255, 255), 0.01, 0.01);
+    auto point_light = scene->addPointLight(vec3<double>(10, 10, 10), 10, vec3<int>(180, 140, 100), 0.01, 0.01);
     
     engine::GUIGroup* gui_group0 = screen.createGUIGroup(
         vec2<double>(0, 0),
@@ -51,9 +52,17 @@ int main() {
     gui_group0->newElement("assets/gui-elements/mask.png", vec2<double>(0.25, 0.1), 0.04, 0);
     gui_group0->newElement("assets/gui-elements/mask.png", vec2<double>(0.3, 0.1), 0.04, 0);
 
+    int mode = 0;
     while(!screen.shouldClose()){
+        for (int k = GLFW_KEY_1; k <= GLFW_KEY_9; ++k) {
+            if (glfwGetKey(screen.getWindow(), k) == GLFW_PRESS) {
+                mode = k - GLFW_KEY_1;
+                std::cout << "Mode set to: " << mode << std::endl;
+            }
+        }
+        
         screen.pollEvents();
-        screen.draw();
+        screen.draw(mode);
         screen.swapBuffers();
     }
 }

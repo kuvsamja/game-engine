@@ -4,7 +4,7 @@
 - [x] Add sprite drawing
 - [ ] make vec2 implicitly cast int to double
 - [ ] input handling
-- [ ] event handling
+- [x] event handling
 - [x] make screen handle camera creation
 - [x] sprite z ordering
 - [x] fix window scaling
@@ -22,10 +22,11 @@
 - [ ] some uniform caching thing
 
 ### lighting:
-- [ ] depth map
-- [ ] various buffers
-- [ ] lighting
-- [ ] depth map stored in png
+- [x] depth map
+- [x] various buffers
+- [x] lighting
+- [x] depth map stored in png
+- [ ] fix edge artifacts
 - [ ] make lighting be a different resolution for performance optimization
 
 ### nemanjica:
