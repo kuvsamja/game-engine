@@ -2,7 +2,7 @@
 
 
 int main() {
-    engine::Screen screen("name", 1600, 800, 1);
+    engine::Screen screen("name", 100, 50, 10);
     screen.has_anti_aliasing = 1;
     engine::Camera* camera0 = screen.createCamera(
         vec2<double>(0, 0),
@@ -25,7 +25,7 @@ int main() {
     // camera1->bindScene(scene);
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
-        "assets/sprites/hornet/depth_map.png",
+        "assets/sprites/hornet/normal_map.png",
         // nullptr,
         vec2<double>(10, 10),
         vec2<double>(30, 40),
@@ -33,7 +33,7 @@ int main() {
     );
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
-        "assets/sprites/hornet/depth_map.png",
+        "assets/sprites/hornet/normal_map.png",
         vec2<double>(20, 10),
         vec2<double>(30, 40),
         0

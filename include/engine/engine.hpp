@@ -184,6 +184,9 @@ class Scene {
         for(auto sprite_object : sprite_objects) {
             delete sprite_object;
         }
+        for(auto point_light : point_lights) {
+            delete point_light;
+        }
     }
 
     /*
@@ -431,6 +434,8 @@ class Screen {
     GLFWwindow* window{nullptr};
     double window_scale;
     vec2<uint32_t> size;
+    GLuint framebuffer{0};
+    GLuint framebuffer_texture{0};
 
     std::vector<CameraData*> cameras{};
     std::vector<GUIGroup*> gui_groups{};
@@ -460,8 +465,8 @@ class Screen {
                 glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
         #endif
         window = glfwCreateWindow(
-            static_cast<int>(size.x()),
-            static_cast<int>(size.y()),
+            static_cast<int>(size.x() * window_scale),
+            static_cast<int>(size.y() * window_scale),
             name,
             nullptr,
             nullptr
@@ -478,6 +483,22 @@ class Screen {
             exit(1);
         }
 
+
+        glGenFramebuffers(1, &framebuffer);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+        glGenTextures(1, &framebuffer_texture);
+        glBindTexture(GL_TEXTURE_2D, framebuffer_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width(), height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer_texture, 0);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "framebuffer in init() not complete" << std::endl;
+            exit(1);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity,
@@ -488,6 +509,7 @@ class Screen {
         }, nullptr);
 
         glViewport(0, 0, static_cast<int>(size.x()), static_cast<int>(size.y()));
+
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -556,7 +578,7 @@ class Screen {
         );
         cameras.push_back(camera_data);
     }
-    
+
 
 
   public:
@@ -711,7 +733,7 @@ class Screen {
             gbuffer_shader->setInt("sprite_normal_map", 1);
             gbuffer_shader->setBool("has_normal_map", sprite_object->has_normal_map);
             gbuffer_shader->setFloat("z", sprite_object->z_layer);
-            
+
 
 
 
@@ -796,7 +818,7 @@ class Screen {
         int pixel_height = static_cast<int>(height() * camera_data->screen_viewport_size.y());
         glViewport(0, 0, pixel_width, pixel_height);
         final_light_pass_shader->use();
-        
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, camera_data->color_texture);
         final_light_pass_shader->setInt("color_texture", 0);
@@ -808,7 +830,7 @@ class Screen {
         final_light_pass_shader->setInt("ignore_light_texture", 2);
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        
+
     }
     /*
         Draws the scenes bound to cameras on the screen
@@ -822,9 +844,9 @@ class Screen {
             drawGBuffer(camera_data);
             drawLightBuffer(camera_data);
             finalLightPass(camera_data);
-            
+
             sprite_draw_shader->use();
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
             int screen_x = static_cast<int>(camera_data->screen_viewport_position.x() * width());
             int screen_y = static_cast<int>(camera_data->screen_viewport_position.y() * height());
             int screen_w = static_cast<int>(camera_data->screen_viewport_size.x() * width());
@@ -833,7 +855,7 @@ class Screen {
 
             sprite_draw_shader->setVec2("camera_world_position", camera_data->camera->position);
             sprite_draw_shader->setVec2("camera_world_size", camera_data->camera->size);
-            
+
             sprite_draw_shader->setVec2("sprite_position", camera_data->camera->position);
             sprite_draw_shader->setVec2("sprite_offset", vec2<double>(0.0, 0.0));
             sprite_draw_shader->setVec2("sprite_size", camera_data->camera->size);
@@ -841,22 +863,22 @@ class Screen {
             glActiveTexture(GL_TEXTURE0);
             switch(mode){
                 case 0:
-                    glBindTexture(GL_TEXTURE_2D, camera_data->framebuffer_texture); 
+                    glBindTexture(GL_TEXTURE_2D, camera_data->framebuffer_texture);
                     break;
                 case 1:
-                    glBindTexture(GL_TEXTURE_2D, camera_data->color_texture); 
+                    glBindTexture(GL_TEXTURE_2D, camera_data->color_texture);
                     break;
                 case 2:
-                    glBindTexture(GL_TEXTURE_2D, camera_data->depth_texture); 
+                    glBindTexture(GL_TEXTURE_2D, camera_data->depth_texture);
                     break;
                 case 3:
-                    glBindTexture(GL_TEXTURE_2D, camera_data->ignore_light_texture); 
+                    glBindTexture(GL_TEXTURE_2D, camera_data->ignore_light_texture);
                     break;
                 case 4:
-                    glBindTexture(GL_TEXTURE_2D, camera_data->light_texture); 
+                    glBindTexture(GL_TEXTURE_2D, camera_data->light_texture);
                     break;
                 case 5:
-                    glBindTexture(GL_TEXTURE_2D, camera_data->normal_map_texture); 
+                    glBindTexture(GL_TEXTURE_2D, camera_data->normal_map_texture);
                     break;
             }
             sprite_draw_shader->setInt("sprite_texture", 0);
@@ -868,7 +890,7 @@ class Screen {
 
     void drawGUI() {
         gui_draw_shader->use();
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         for(auto gui_group : gui_groups) {
             int viewport_pixel_x = static_cast<int>(width() * gui_group->viewport_position.x());
             int viewport_pixel_y = static_cast<int>(height() * gui_group->viewport_position.y());
@@ -883,7 +905,7 @@ class Screen {
                 /* vertex shader uniforms */
                 gui_draw_shader->setVec2(
                     "pixel_sprite_position",
-                    vec2(
+                    vec2<double>(
                         gui_texture_element->position.x() * viewport_pixel_width,
                         gui_texture_element->position.y() * viewport_pixel_height
                     )
@@ -907,6 +929,18 @@ class Screen {
         }
     }
 
+    void drawFramebufferToScreen() {
+        sprite_draw_shader->use();
+        sprite_draw_shader->setVec2(
+            "camera_world_position",
+            vec2<double>(0, 0)
+        );
+        sprite_draw_shader->setVec2(
+            "camera_world_size",
+            vec2<double>(0, 0)
+        ); // TODO: finish this
+
+    }
     void draw(int mode) {
 
         // switch(has_anti_aliasing) {
