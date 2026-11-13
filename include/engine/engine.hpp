@@ -157,6 +157,8 @@ class Scene {
         sprite_size - sprite width and height in worldspace
         z_layer - sprite depth ordering, smaller z means sprite is drawn below others
         creates a SpriteObject and pushes it into the Scene
+
+        returns a pointer to that SpriteObject
     */
     SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, vec2<double> sprite_size, double z_layer) {
         SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_layer);
@@ -171,6 +173,8 @@ class Scene {
         sprite_width - sprite width and height in worldspace
         z_layer - sprite depth ordering, smaller z means sprite is drawn below others
         creates a SpriteObject and pushes it into the Scene
+
+        returns a pointer to that SpriteObject
     */
     SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, double sprite_width, double z_layer) {
         int width, height, channels;
@@ -193,6 +197,15 @@ class Scene {
             return true;
         }
         return false;
+    }
+
+    bool changeSpriteZ(SpriteObject* sprite_object, double new_z) {
+        if(!sprite_objects.erase(sprite_object)) return false;
+
+        sprite_object->z_layer = new_z;
+        sprite_objects.insert(sprite_object);
+
+        return true;
     }
 
 
