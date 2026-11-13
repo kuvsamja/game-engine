@@ -18,13 +18,7 @@
 - [x] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
 - [ ] mabye change all doubles to floats
 - [ ] expose a custom shader maker api
-
-### lighting:
-- [ ] depth map
-- [ ] various buffers
-- [ ] lighting
-- [ ] depth map stored in png
-- [ ] make lighting be a different resolution for performance optimization
+- [ ] transparent sprites
 
 ### nemanjica:
 - [ ] make sprites autodetect aspect ratio

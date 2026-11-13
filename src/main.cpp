@@ -24,18 +24,16 @@ int main() {
     camera0->bindScene(scene);
     // camera1->bindScene(scene);
     scene->addSpriteObject(
-        "assets/sprites/hornet/colors.png",
-        "assets/sprites/hornet/colors.png",
+        "assets/sprites/hornet-transparent/colors.png",
         vec2<double>(10, 10),
         vec2<double>(30, 40),
         1
     );
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
-        "assets/sprites/hornet/colors.png",
         vec2<double>(20, 10),
         vec2<double>(30, 40),
-        0
+        2
     );
     
     engine::GUIGroup* gui_group0 = screen.createGUIGroup(

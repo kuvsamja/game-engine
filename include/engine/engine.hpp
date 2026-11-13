@@ -19,6 +19,7 @@
 
 namespace engine
 {
+
 /*
     Loads an image from a path into the GLuint
  */
@@ -55,7 +56,6 @@ class SpriteObject : public Transform {
     /* current sprite */
 
     GLuint sprite{0};
-    GLuint normal_map{0};
 
   public:
     vec2<double> sprite_offset;
@@ -114,31 +114,22 @@ class SpriteObject : public Transform {
     }
     ~SpriteObject() {
         if (sprite) glDeleteTextures(1, &sprite);
-        if (normal_map) glDeleteTextures(1, &normal_map);
     }
 
     /*
         normal map image and sprite image must be the same resulution TODO: make them not need to be same resolution
         Load an image as the sprite
     */
-    void loadTexture(const char* sprite_image_path, const char* normal_map_path) {
+    void loadTexture(const char* sprite_image_path) {
         int sprite_width, sprite_height, sprite_channels;
         loadGLTexture(&sprite, sprite_image_path, &sprite_width, &sprite_height, &sprite_channels);
         if (!sprite) {
             std::cerr << "Failed to load sprite texture from the path: \"" << sprite_image_path << "\"" << std::endl;
             exit(1);
         }
-        int normal_map_width, normal_map_height, normal_map_channels;
-        loadGLTexture(&normal_map, normal_map_path, &normal_map_width, &normal_map_height, &normal_map_channels);
-        if (!normal_map) {
-            std::cerr << "Failed to load normal_map texture from the path: \"" << normal_map_path << "\"" << std::endl;
-            exit(1);
-        }
-
     }
 
     GLuint getSprite() { return sprite; }
-    GLuint getNormalMap() { return normal_map; }
 
 
 };
@@ -148,7 +139,7 @@ class SpriteObject : public Transform {
 class Scene {
   private:
     static inline bool compareZ(SpriteObject* const& s1, SpriteObject* const& s2) {
-        return s1->z_layer > s2->z_layer;
+        return s1->z_layer < s2->z_layer;
     }
 
   public:
@@ -167,9 +158,9 @@ class Scene {
         z_layer - sprite depth ordering, smaller z means sprite is drawn below others
         creates a SpriteObject and pushes it into the Scene
     */
-    SpriteObject* addSpriteObject(const char* sprite_path, const char* normal_map_path, vec2<double> position, vec2<double> sprite_size, double z_layer) {
+    SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, vec2<double> sprite_size, double z_layer) {
         SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_layer);
-        sprite_object->loadTexture(sprite_path, normal_map_path);
+        sprite_object->loadTexture(sprite_path);
         sprite_objects.insert(sprite_object);
         return sprite_object;
     }
@@ -376,7 +367,9 @@ class Screen {
         glViewport(0, 0, static_cast<int>(size.x()), static_cast<int>(size.y()));
 
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+                            GL_ONE,       GL_ONE_MINUS_SRC_ALPHA);
     }
 
     void createQuad() {
@@ -494,8 +487,8 @@ class Screen {
         Binds a texture to a sprite_object
         *shouldnt really be used*
     */
-    void bindTexture(SpriteObject* sprite_object, const char* sprite_image_path, const char* normal_map_path) {
-        sprite_object->loadTexture(sprite_image_path, normal_map_path);
+    void bindTexture(SpriteObject* sprite_object, const char* sprite_image_path) {
+        sprite_object->loadTexture(sprite_image_path);
     }
 
     /*
@@ -534,10 +527,10 @@ class Screen {
             glViewport(0, 0, pixel_width, pixel_height);
 
             glClearColor(
-                camera_data->camera->bg_color.r,
-                camera_data->camera->bg_color.g,
-                camera_data->camera->bg_color.b,
-                camera_data->camera->bg_color.a
+                static_cast<float>(camera_data->camera->bg_color.r) / 255,
+                static_cast<float>(camera_data->camera->bg_color.g) / 255,
+                static_cast<float>(camera_data->camera->bg_color.b) / 255,
+                static_cast<float>(camera_data->camera->bg_color.a) / 255
             );
             glClear(GL_COLOR_BUFFER_BIT);
 
