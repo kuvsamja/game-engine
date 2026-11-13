@@ -164,6 +164,28 @@ class Scene {
         sprite_objects.insert(sprite_object);
         return sprite_object;
     }
+    
+    /*
+        position - position in worldspace
+        sprite_path - file path to the image of the sprite
+        sprite_width - sprite width and height in worldspace
+        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+        creates a SpriteObject and pushes it into the Scene
+    */
+    SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, double sprite_width, double z_layer) {
+        int width, height, channels;
+        if (!stbi_info(sprite_path, &width, &height, &channels)) {
+            std::cerr << "ERROR: failed to read sprite info: " << stbi_failure_reason() << std::endl;
+            std::exit(1);
+        }
+        double sprite_height = sprite_width / width * height; 
+
+        vec2<double> sprite_size(sprite_width, sprite_height);
+        SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_layer);
+        sprite_object->loadTexture(sprite_path);
+        sprite_objects.insert(sprite_object);
+        return sprite_object;
+    }
 
 
 

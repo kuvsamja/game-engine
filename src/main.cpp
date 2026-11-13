@@ -26,13 +26,13 @@ int main() {
     scene->addSpriteObject(
         "assets/sprites/hornet-transparent/colors.png",
         vec2<double>(10, 10),
-        vec2<double>(30, 40),
+        30,
         1
     );
     scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
         vec2<double>(20, 10),
-        vec2<double>(30, 40),
+        30,
         2
     );
     

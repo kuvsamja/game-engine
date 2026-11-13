@@ -19,7 +19,7 @@
 - [ ] mabye change all doubles to floats
 - [ ] expose a custom shader maker api
 - [x] transparent sprites
-  - [ ] make sprites autodetect aspect ratio
+- [x] make sprites autodetect aspect ratio
 - [x] make camera size and viewport aspect ratio sync
 - [x] make shader.hpp use c++ file streams
   - [ ] fix window scaling
