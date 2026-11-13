@@ -8,14 +8,13 @@
 #include <cstdint>
 #include <iostream>
 
-#include <vec3.hpp>
-#include <vec2.hpp>
-#include <color.h>
-#include <SortedVector.hpp>
-#include <shader.hpp>
+#include <utility/vec2.hpp>
+#include <utility/color.h>
+#include <utility/SortedVector.hpp>
+#include <utility/shader.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include <stb/stb_image.h>
 
 namespace engine
 {

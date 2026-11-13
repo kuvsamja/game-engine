@@ -9,7 +9,7 @@
 #include <fstream>
 #include <iterator>
 
-#include <vec2.hpp>
+#include <utility/vec2.hpp>
 
 class Shader {
   public:
