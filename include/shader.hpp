@@ -6,7 +6,8 @@
 
 #include <string>
 #include <iostream>
-#include <string>
+#include <fstream>
+#include <iterator>
 
 #include <vec2.hpp>
 
@@ -14,37 +15,37 @@ class Shader {
   public:
     unsigned int ID;
     
-    // constructor reads and builds the shader
+    /* constructor reads and builds the shader */
     Shader(const char* vertex_shader_path, const char* fragment_shader_path) {
         // reading shaders
         // // vertex
-        std::string vertex_shader_text;
-        FILE* vertex_shader_file = fopen(vertex_shader_path, "r");
-        if(vertex_shader_file == NULL) {
-            std::cerr << "ERROR: reading vertex shader file failed" << std::endl;
-            exit(-1);
+        std::ifstream vertex_shader_file_stream(vertex_shader_path);
+        if(!vertex_shader_file_stream.is_open()) {
+            std::cerr << "ERROR: opening vertex shader file failed" << std::endl;
+            std::exit(-1);
         }
-        while(!feof(vertex_shader_file)) {
-            vertex_shader_text += fgetc(vertex_shader_file);
-        }
-        fclose(vertex_shader_file);
+        std::string vertex_shader_text{
+            std::istreambuf_iterator<char>(vertex_shader_file_stream),
+            std::istreambuf_iterator<char>()
+        };
+        
         const char* vertex_shader_src = vertex_shader_text.c_str();
 
         // // fragment
-        std::string fragment_shader_text;
-        FILE* fragment_shader_file = fopen(fragment_shader_path, "r");
-        if(fragment_shader_file == NULL) {
-            std::cerr << "ERROR: reading fragment shader file failed" << std::endl;
-            exit(-1);
+        std::ifstream fragment_shader_file_stream(fragment_shader_path);
+        if(!fragment_shader_file_stream.is_open()) {
+            std::cerr << "ERROR: opening fragment shader file failed" << std::endl;
+            std::exit(-1);
         }
-        while(!feof(fragment_shader_file)) { // TODO: fix off by one error when EOF is at the end of *_shader_text
-            fragment_shader_text += fgetc(fragment_shader_file);
-        }
-        fclose(fragment_shader_file);
+        std::string fragment_shader_text{
+            std::istreambuf_iterator<char>(fragment_shader_file_stream),
+            std::istreambuf_iterator<char>()
+        };
+
 
         const char* fragment_shader_src = fragment_shader_text.c_str();
 
-        // comiplation
+        // compilation
         unsigned int vertex, fragment;
         int success;
         char info_log[512];
@@ -57,7 +58,7 @@ class Shader {
         if(!success) {
             glGetShaderInfoLog(vertex, 512, NULL, info_log);
             std::cerr << "ERROR: vertex shader compilation failed\n" << info_log << std::endl;
-            exit(-1);
+            std::exit(-1);
         };
 
         // // fragment
@@ -68,7 +69,7 @@ class Shader {
         if(!success) {
             glGetShaderInfoLog(fragment, 512, NULL, info_log);
             std::cerr << "ERROR: fragment shader compilation failed\n" << info_log << std::endl;
-            exit(-1);
+            std::exit(-1);
         }
 
         // // program
@@ -80,7 +81,7 @@ class Shader {
         if(!success){
             glGetProgramInfoLog(ID, 512, NULL, info_log);
             std::cerr << "ERROR: shader program compilation failed\n" << info_log << std::endl;
-            exit(-1);
+            std::exit(-1);
         }
 
         // delete the linked shaders
