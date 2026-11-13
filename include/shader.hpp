@@ -13,7 +13,7 @@
 
 class Shader {
   public:
-    unsigned int ID;
+     GLint ID;
     
     /* constructor reads and builds the shader */
     Shader(const char* vertex_shader_path, const char* fragment_shader_path) {

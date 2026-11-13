@@ -1,16 +1,16 @@
 ## SETUP:
 - [x] Add gui elements
-- [ ] Make text gui
+  - [ ] Make text gui
 - [x] Add sprite drawing
 - [ ] make vec2 implicitly cast int to double
-- [ ] input handling
+  - [ ] input handling
 - [ ] event handling
 - [x] make screen handle camera creation
 - [x] sprite z ordering
 - [x] fix window scaling
-- [ ] make mutable z_order and sprite deletion from the scene
-- [ ] fix various aspect ratio related issues
-- [ ] audio stuff
+  - [ ] make mutable z_order and sprite deletion from the scene
+  - [ ] fix various aspect ratio related issues
+  - [ ] audio stuff
 - [ ] make lighting
 - [ ] try making a way to prevent mixels when making pixelart
 - [x] switch to opengl ):
@@ -19,12 +19,10 @@
 - [ ] mabye change all doubles to floats
 - [ ] expose a custom shader maker api
 - [x] transparent sprites
-
-### nemanjica:
-- [ ] make sprites autodetect aspect ratio
-- [ ] make camera size and viewport aspect ratio sync
-- [ ] make shader.hpp use c++ file streams
-- [ ] fix window scaling
+  - [ ] make sprites autodetect aspect ratio
+  - [ ] make camera size and viewport aspect ratio sync
+- [x] make shader.hpp use c++ file streams
+  - [ ] fix window scaling
 
 ## FURTHER FEATURES
 - [ ] Add configurable custom drawing logic
@@ -37,5 +35,10 @@
 - [ ] make multiple sprites use the same texture for performance
 - [ ] move to the gpu
 
+## Physics
+- [ ] Make some collisions
+- [ ] Rigidbody simulation
+- [ ] Softbodies
+ 
 ## goal
 - [ ] make a gui editor

@@ -37,7 +37,7 @@ inline void loadGLTexture(GLuint* texture, const char* path, int* width, int* he
     unsigned char *data = stbi_load(path, width, height, channels, 4);
     if (data == NULL) {
         std::cerr << "ERROR: failed to load image data" << std::endl;
-        exit(1);
+        std::exit(1);
     }
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, *width, *height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -125,7 +125,7 @@ class SpriteObject : public Transform {
         loadGLTexture(&sprite, sprite_image_path, &sprite_width, &sprite_height, &sprite_channels);
         if (!sprite) {
             std::cerr << "Failed to load sprite texture from the path: \"" << sprite_image_path << "\"" << std::endl;
-            exit(1);
+            std::exit(1);
         }
     }
 
@@ -248,7 +248,7 @@ class CameraData {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             std::cerr << "Framebuffer not complete" << std::endl;
-            exit(1);
+            std::exit(1);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
@@ -338,7 +338,7 @@ class Screen {
     void init(const char* name) {
         if (!glfwInit()) {
             std::cerr << "glfwInit failed" << std::endl;
-            exit(1);
+            std::exit(1);
         }
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -356,13 +356,13 @@ class Screen {
         if (!window) {
             std::cerr << "glfwCreateWindow failed" << std::endl;
             glfwTerminate();
-            exit(1);
+            std::exit(1);
         }
         glfwMakeContextCurrent(window);
 
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
             std::cerr << "gladLoadGLLoader failed" << std::endl;
-            exit(1);
+            std::exit(1);
         }
         glViewport(0, 0, static_cast<int>(size.x()), static_cast<int>(size.y()));
 
@@ -519,7 +519,7 @@ class Screen {
         for( const auto &camera_data : cameras ) {
             if (camera_data->camera->getScene() == nullptr) {
                 std::cerr << "Please bind a scene to the camera before drawing" << std::endl;
-                exit(1);
+                std::exit(1);
             }
             glBindFramebuffer(GL_FRAMEBUFFER, camera_data->color_buffer_fbo);
             int pixel_width = static_cast<int>(width() * camera_data->screen_viewport_size.x());
