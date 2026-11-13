@@ -16,6 +16,13 @@ class SortedVector {
         sorted_vector.insert(it, element);
     }
 
+    bool erase(const T& target) {
+        auto it = std::find(sorted_vector.begin(), sorted_vector.end(), target);
+        if (it == sorted_vector.end()) return false;
+        sorted_vector.erase(it);
+        return true;
+    }
+    
     std::vector<T>& getVector() const {
         return sorted_vector;
     }

@@ -1,3 +1,4 @@
+#include <cmath>
 #include <engine/engine.hpp>
 
 
@@ -29,7 +30,7 @@ int main() {
         30,
         1
     );
-    scene->addSpriteObject(
+    auto obj1 = scene->addSpriteObject(
         "assets/sprites/hornet/colors.png",
         vec2<double>(20, 10),
         30,

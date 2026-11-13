@@ -7,8 +7,9 @@
 - [ ] event handling
 - [x] make screen handle camera creation
 - [x] sprite z ordering
-- [x] fix window scaling
-  - [ ] make mutable z_order and sprite deletion from the scene
+- [x] fix window scaling  
+  - [ ] make mutable z_order
+  - [x] sprite deletion from the scene
   - [ ] fix various aspect ratio related issues
   - [ ] audio stuff
 - [ ] make lighting

@@ -187,6 +187,14 @@ class Scene {
         return sprite_object;
     }
 
+    bool deleteSpriteObject(SpriteObject* sprite_object) {
+        if (sprite_objects.erase(sprite_object)) {
+            delete sprite_object;
+            return true;
+        }
+        return false;
+    }
+
 
 
 };
