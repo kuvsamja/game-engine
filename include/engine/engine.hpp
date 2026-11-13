@@ -462,6 +462,24 @@ class Screen {
     /*
         Creates a camera object on the heap, binds it to the screen and returns pointer to itself
         position - camera position in worldspace
+        width - camera viewport width
+        screen_viewport_position - position of the upper left corner of the camera, mapped 0-1 to screenspace
+        screen_viewport_size - size of the place displaying the camera, ranges 0-1 as a fraction of the screen size
+    */
+    Camera* createCamera(vec2<double> position, double width, vec2<double> screen_viewport_position, vec2<double> screen_viewport_size) {
+        double height = width / screen_viewport_size.x() / size.x() * screen_viewport_size.y() * size.y();
+        vec2<double> world_size(
+            width,
+            height
+        );
+        Camera* camera = new Camera(position, world_size);
+        addCamera(camera, screen_viewport_position, screen_viewport_size);
+        return camera;
+    }
+    
+    /*
+        Creates a camera object on the heap, binds it to the screen and returns pointer to itself
+        position - camera position in worldspace
         size - camera viewport width and height in world units
         screen_viewport_position - position of the upper left corner of the camera, mapped 0-1 to screenspace
         screen_viewport_size - size of the place displaying the camera, ranges 0-1 as a fraction of the screen size
