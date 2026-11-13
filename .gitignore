@@ -1,3 +1,5 @@
 main
 .clangd
 DOCUMENTATION.md
+bin/*
+obj/*

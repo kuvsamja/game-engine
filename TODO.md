@@ -4,11 +4,11 @@
 - [x] Add sprite drawing
 - [ ] make vec2 implicitly cast int to double
   - [ ] input handling
-- [ ] event handling
+- [ ] general event handling
 - [x] make screen handle camera creation
 - [x] sprite z ordering
 - [x] fix window scaling  
-  - [ ] make mutable z_order
+- [x] make mutable sprite z_order
 - [x] sprite deletion from the scene
   - [ ] fix various aspect ratio related issues
   - [ ] audio stuff
