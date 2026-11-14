@@ -34,6 +34,6 @@ run: all
 	./$(TARGET)
 
 clean:
-	rm -rf obj bin $(TARGET)
+	rm -rf obj/* bin/*
 
 .PHONY: all run clean

@@ -21,6 +21,7 @@
 - [x] make camera size and viewport aspect ratio sync
   - [ ] fix window scaling
 - [ ] unicode font support
+- [ ] autocalculate font size for the text box size
 
 
 ### Stucture and code
@@ -31,6 +32,8 @@
 - [x] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
 - [x] switch to opengl ):
   - [ ] fix various aspect ratio related issues
+- [ ] better text resizing
+- [ ] move to the other std_truetype api
 
 
 ## FURTHER FEATURES

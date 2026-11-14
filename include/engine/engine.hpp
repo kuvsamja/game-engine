@@ -386,15 +386,16 @@ struct GUITextElement : public GUIElement{
     std::string text;
     Font* font{nullptr};
     RGBAColor color{255, 255, 255, 255};
+    double text_box_width;
 };
 
 class GUIGroup {
   private:
     static inline bool compareZ(GUIElement* const& a, GUIElement* const& b) {
-        return a->z_order > b->z_order;
+        return a->z_order < b->z_order;
     }
   public:
-    SortedVector<GUIElement*> gui_texture_elements{compareZ};
+    SortedVector<GUIElement*> gui_elements{compareZ};
     vec2<double> viewport_position;
     vec2<double> viewport_size;
 
@@ -404,7 +405,7 @@ class GUIGroup {
     }
 
     ~GUIGroup() {
-        for(auto element : gui_texture_elements) delete element;
+        for(auto element : gui_elements) delete element;
     }
 
 
@@ -427,11 +428,31 @@ class GUIGroup {
         double aspect_ratio = static_cast<double>(image_height) / image_width;
         element->width = width;
         element->aspect_ratio = aspect_ratio;
-        gui_texture_elements.insert(element);
+        gui_elements.insert(element);
 
         return element;
     }
-    GUIImageElement* newTextElement(const Font* font, vec2<double> position, double width, double z_order);
+    /*
+        font - pointer to the font object made by calling Font()
+        text - text displayed on the element
+        position - position in the GUIGroup viewport, mapped 0-1
+        text_box_width - texbox wrap width relative to the viewport width, scaled 0-1
+        z_order - decides which elements are drawn on top of others
+        color - text color
+        note: gui aspect ratio doesnt depend on screen or viewport aspect ratios
+     */
+    GUITextElement* newTextElement(Font* font, const std::string& text, vec2<double> position, double text_box_width, double z_order, RGBAColor color) {
+        GUITextElement* element = new GUITextElement;
+        element->position = position;
+        element->z_order = z_order;
+        element->text = text;
+        element->font = font;
+        element->color = color;
+        element->text_box_width = text_box_width;
+        
+        gui_elements.insert(element);
+        return element;
+    }
 };
 
 class Screen {
@@ -446,9 +467,10 @@ class Screen {
     GLuint quad_vao{0};
     GLuint quad_vbo{0};
 
-    Shader* sprite_draw_shader{nullptr};
-    Shader* gui_draw_shader{nullptr};
-
+    Shader* draw_sprite_shader{nullptr};
+    Shader* draw_gui_image_shader{nullptr};
+    Shader* draw_gui_text_shader{nullptr};
+    
     /*
         Initializes GLFW window and the OpenGL context
     */
@@ -514,13 +536,17 @@ class Screen {
     }
 
     void makeShaders() {
-        sprite_draw_shader = new Shader(
-            "shaders/sprite_drawing/vertex.gl",
-            "shaders/sprite_drawing/fragment.gl"
+        draw_sprite_shader = new Shader(
+            "shaders/draw_sprite/vertex.gl",
+            "shaders/draw_sprite/fragment.gl"
         );
-        gui_draw_shader = new Shader(
-            "shaders/gui_drawing/vertex.gl",
-            "shaders/gui_drawing/fragment.gl"
+        draw_gui_image_shader = new Shader(
+            "shaders/draw_gui_image/vertex.gl",
+            "shaders/draw_gui_image/fragment.gl"
+        );
+        draw_gui_text_shader = new Shader(
+            "shaders/draw_gui_text/vertex.gl",
+            "shaders/draw_gui_text/fragment.gl"
         );
     }
 
@@ -669,35 +695,35 @@ class Screen {
             );
             glClear(GL_COLOR_BUFFER_BIT);
 
-            sprite_draw_shader->use();
+            draw_sprite_shader->use();
 
-            sprite_draw_shader->setVec2(
+            draw_sprite_shader->setVec2(
                 "camera_world_position",
                 camera_data->camera->position
             );
-            sprite_draw_shader->setVec2(
+            draw_sprite_shader->setVec2(
                 "camera_world_size",
                 camera_data->camera->size
             );
 
             for( const auto &sprite_object : camera_data->camera->getScene()->sprite_objects ) {
                 /* vertex shader uniforms */
-                sprite_draw_shader->setVec2(
+                draw_sprite_shader->setVec2(
                     "sprite_position",
                     sprite_object->position
                 );
-                sprite_draw_shader->setVec2(
+                draw_sprite_shader->setVec2(
                     "sprite_offset",
                     sprite_object->sprite_offset
                 );
-                sprite_draw_shader->setVec2(
+                draw_sprite_shader->setVec2(
                     "sprite_size",
                     sprite_object->sprite_size
                 );
                 /* fragment shader uniform */
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, sprite_object->getSprite());
-                sprite_draw_shader->setInt("sprite_texture", 0);
+                draw_sprite_shader->setInt("sprite_texture", 0);
 
 
                 glBindVertexArray(quad_vao);
@@ -710,21 +736,60 @@ class Screen {
             int screen_h = static_cast<int>(camera_data->screen_viewport_size.y() * height());
             glViewport(screen_x, screen_y, screen_w, screen_h);
 
-            sprite_draw_shader->setVec2("sprite_position", camera_data->camera->position);
-            sprite_draw_shader->setVec2("sprite_offset", vec2<double>(0.0, 0.0));
-            sprite_draw_shader->setVec2("sprite_size", camera_data->camera->size);
+            draw_sprite_shader->setVec2("sprite_position", camera_data->camera->position);
+            draw_sprite_shader->setVec2("sprite_offset", vec2<double>(0.0, 0.0));
+            draw_sprite_shader->setVec2("sprite_size", camera_data->camera->size);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, camera_data->color_texture);
-            sprite_draw_shader->setInt("sprite_texture", 0);
+            draw_sprite_shader->setInt("sprite_texture", 0);
 
             glBindVertexArray(quad_vao);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
     }
 
+
+    void drawGUIImageElement(GUIImageElement* element, int viewport_pixel_width, int viewport_pixel_height) {
+        float element_pixel_width = element->width * viewport_pixel_width;
+        float element_pixel_height = element_pixel_width * element->aspect_ratio;
+
+        /* vertex shader uniforms */
+        draw_gui_image_shader->setVec2(
+            "pixel_sprite_position",
+            vec2(
+                element->position.x() * viewport_pixel_width,
+                element->position.y() * viewport_pixel_height
+            )
+        );
+        draw_gui_image_shader->setVec2(
+            "pixel_sprite_size",
+            vec2<double>(
+                element_pixel_width,
+                element_pixel_height
+            )
+        );
+        draw_gui_image_shader->setVec2(
+            "pixel_viewport_size",
+            vec2<double>(viewport_pixel_width, viewport_pixel_height)
+        );
+        /* fragment shader uniforms */
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, element->texture);
+        draw_gui_image_shader->setInt("sprite_texture", 0);
+        
+        glBindVertexArray(quad_vao);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    }
+
+    void drawGUITextElement(GUITextElement* element, int viewport_pixel_width, int viewport_pixel_height) {
+        
+    }
+
+    
     void drawGUI() {
-        gui_draw_shader->use();
+        draw_gui_image_shader->use();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         for(auto gui_group : gui_groups) {
             int viewport_pixel_x = static_cast<int>(width() * gui_group->viewport_position.x());
@@ -733,33 +798,14 @@ class Screen {
             int viewport_pixel_height = static_cast<int>(height() * gui_group->viewport_size.y());
             glViewport(viewport_pixel_x, viewport_pixel_y, viewport_pixel_width, viewport_pixel_height);
 
-            for(auto gui_texture_element : gui_group->gui_texture_elements) {
-                float element_pixel_width = gui_texture_element->width * gui_group->viewport_size.x() * width();
-                float element_pixel_height = element_pixel_width * gui_texture_element->aspect_ratio;
-
-                /* vertex shader uniforms */
-                gui_draw_shader->setVec2(
-                    "pixel_sprite_position",
-                    vec2(
-                        gui_texture_element->position.x() * viewport_pixel_width,
-                        gui_texture_element->position.y() * viewport_pixel_height
-                    )
-                );
-                gui_draw_shader->setVec2(
-                    "pixel_sprite_size",
-                    vec2<double>(element_pixel_width, element_pixel_height)
-                );
-                gui_draw_shader->setVec2(
-                    "pixel_viewport_size",
-                    vec2<double>(viewport_pixel_width, viewport_pixel_height)
-                );
-                /* fragment shader uniforms */
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, gui_texture_element->texture);
-                gui_draw_shader->setInt("sprite_texture", 0);
-                
-                glBindVertexArray(quad_vao);
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            for(auto gui_element : gui_group->gui_elements) {
+                if(dynamic_cast<GUIImageElement*>(gui_element) != nullptr) {
+                    drawGUIImageElement(static_cast<GUIImageElement*>(gui_element),
+                        viewport_pixel_width, viewport_pixel_height);
+                } else {
+                    drawGUITextElement(static_cast<GUITextElement*>(gui_element),
+                        viewport_pixel_width, viewport_pixel_height);
+                }
             }
         }
     }

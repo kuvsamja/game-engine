@@ -62,6 +62,6 @@ int main() {
         if (timer % 2 == 0) scene->changeSpriteZ(obj1, obj2->z_layer+1);
         else scene->changeSpriteZ(obj2, obj1->z_layer+1);
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 }
