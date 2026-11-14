@@ -362,18 +362,31 @@ class Font {
     }
 };
 
+
 struct GUIElement {
   public:
-    GLuint texture;
     vec2<double> position;
+    double z_order;
+    
+    virtual ~GUIElement() {}
+};
+
+struct GUIImageElement : public GUIElement{
+  public:
+    GLuint texture{0};
     double width;
     double aspect_ratio;
-    double z_order;
-    ~GUIElement() {
-        glDeleteTextures(1, &texture);
+    ~GUIImageElement() override {
+        if (texture) glDeleteTextures(1, &texture);
     }
 };
 
+struct GUITextElement : public GUIElement{
+  public:
+    std::string text;
+    Font* font{nullptr};
+    RGBAColor color{255, 255, 255, 255};
+};
 
 class GUIGroup {
   private:
@@ -402,8 +415,8 @@ class GUIGroup {
         z_order - decides which elements are drawn on top of others
         note: gui aspect ratio doesnt depend on screen or viewport aspect ratios
      */
-    GUIElement* newImageElement(const char* path, vec2<double> position, double width, double z_order) {
-        GUIElement* element = new GUIElement;
+    GUIImageElement* newImageElement(const char* path, vec2<double> position, double width, double z_order) {
+        GUIImageElement* element = new GUIImageElement;
         element->position = position;
         element->z_order = z_order;
 
@@ -418,6 +431,7 @@ class GUIGroup {
 
         return element;
     }
+    GUIImageElement* newTextElement(const Font* font, vec2<double> position, double width, double z_order);
 };
 
 class Screen {

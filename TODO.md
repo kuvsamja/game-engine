@@ -1,32 +1,38 @@
 ## SETUP:
+
+### Features
 - [x] Add gui elements
   - [ ] Make text gui
 - [x] Add sprite drawing
-- [ ] make vec2 implicitly cast int to double
   - [ ] input handling
 - [ ] general event handling
 - [x] make screen handle camera creation
 - [x] sprite z ordering
-- [x] fix window scaling  
 - [x] make mutable sprite z_order
+- [ ] make mutable gui z_order
 - [x] sprite deletion from the scene
-  - [ ] fix various aspect ratio related issues
   - [ ] audio stuff
 - [ ] make lighting
 - [ ] try making a way to prevent mixels when making pixelart
-- [x] switch to opengl ):
 - [ ] add proper window resizing handling
-- [x] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
-- [ ] mabye change all doubles to floats
 - [ ] expose a custom shader maker api
 - [x] transparent sprites
 - [x] make sprites autodetect aspect ratio
 - [x] make camera size and viewport aspect ratio sync
-- [x] make shader.hpp use c++ file streams
   - [ ] fix window scaling
-  - [ ] make stuff non copyable
 - [ ] unicode font support
+
+
+### Stucture and code
+  - [ ] unbind textures after binding or use
   - [ ] better error messages
+  - [ ] make stuff non copyable and constant
+- [x] make shader.hpp use c++ file streams
+- [x] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
+- [x] switch to opengl ):
+  - [ ] fix various aspect ratio related issues
+
+
 ## FURTHER FEATURES
 - [ ] Add configurable custom drawing logic
 - [ ] Make some objects
