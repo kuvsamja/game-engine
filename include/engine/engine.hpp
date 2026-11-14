@@ -751,6 +751,7 @@ class Screen {
 
 
     void drawGUIImageElement(GUIImageElement* element, int viewport_pixel_width, int viewport_pixel_height) {
+        draw_gui_image_shader->use();
         float element_pixel_width = element->width * viewport_pixel_width;
         float element_pixel_height = element_pixel_width * element->aspect_ratio;
 
@@ -784,6 +785,58 @@ class Screen {
     }
 
     void drawGUITextElement(GUITextElement* element, int viewport_pixel_width, int viewport_pixel_height) {
+        Font* font = element->font;
+        std::string& text = element->text;
+
+        float text_box_pixel_x = viewport_pixel_width*element->position.x();
+        float text_box_pixel_y = viewport_pixel_height*element->position.y();
+        float text_box_pixel_width = viewport_pixel_width * element->text_box_width;
+        float line_pixel_height = element->font->pixel_height * 1.2; // TODO: adjust this
+
+        draw_gui_text_shader->use();
+        draw_gui_text_shader->setVec2("pixel_viewport_size", vec2<double>(viewport_pixel_width, viewport_pixel_height));
+        draw_gui_text_shader->setVec4("text_color", element->color.r / 255.0f, element->color.g / 255.0f,
+                                  element->color.b / 255.0f, element->color.a / 255.0f);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, font->atlas_texture);
+        draw_gui_text_shader->setInt("atlas", 0);
+        glBindVertexArray(quad_vao);
+
+        auto index = [](char c) {
+            int i = static_cast<unsigned char>(c) - Font::FIRST_CHAR;
+            return (i < 0 || i >= Font::CHAR_COUNT) ? '?' - Font::FIRST_CHAR : i;
+        };
+
+        float pen_x = 0.0f;
+        float pen_y = line_pixel_height;
+
+        size_t i = 0;
+        while(i < text.size()) {
+            if (text[i] == '\n') { pen_x = 0; pen_y += line_pixel_height; i++; continue; }
+
+            float word_pixel_width = 0;
+            size_t j;
+            for(j = i; j < text.size() && text[j]!=' ' && text[j]!='\n'; j++) {
+                word_pixel_width += font->cdata[index(text[j])].xadvance;
+            }
+            if (pen_x > 0 && pen_x + word_pixel_width > text_box_pixel_width) { pen_x = 0; pen_y += line_pixel_height; }
+
+            for(size_t k = i; k < j; k++) {
+                stbtt_aligned_quad quad;
+                stbtt_GetBakedQuad(font->cdata, font->atlas_width, font->atlas_height,
+                                    index(text[k]), &pen_x, &pen_y, &quad, 1);
+                draw_gui_text_shader->setVec2("pixel_text_position",
+                    vec2<double>(text_box_pixel_x + quad.x0, text_box_pixel_y - quad.y1));
+                draw_gui_text_shader->setVec2("pixel_text_size",
+                    vec2<double>(quad.x1 - quad.x0, quad.y1 - quad.y0));
+
+                draw_gui_text_shader->setVec4("uv_rect", quad.s0, quad.t1, quad.s1, quad.t0);
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            }
+            i = j;
+            if (i < text.size() && text[i] == ' ') { pen_x += font->cdata[index(' ')].xadvance; i++; }
+        }
+        
         
     }
 

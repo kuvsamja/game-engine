@@ -1,0 +1,19 @@
+#version 330 core
+
+layout(location = 0) in vec2 in_corner;
+layout(location = 1) in vec2 in_uv;
+
+uniform vec2 pixel_text_position;
+uniform vec2 pixel_text_size;
+uniform vec2 pixel_viewport_size;
+uniform vec4 uv_rect;
+
+out vec2 frag_uv;
+
+
+void main() {
+    vec2 pixel = pixel_text_position + in_corner * pixel_text_size;
+    vec2 ndc = pixel / pixel_viewport_size * 2.0 - 1.0;
+    gl_Position = vec4(ndc, 0.0, 1.0);
+    frag_uv = mix(uv_rect.xy, uv_rect.zw, in_uv);
+}

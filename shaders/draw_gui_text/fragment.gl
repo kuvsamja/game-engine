@@ -1,0 +1,13 @@
+#version 330 core
+
+in vec2 frag_uv;
+
+uniform sampler2D atlas;
+uniform vec4 text_color;
+
+out vec4 frag_color;
+
+void main() {
+    float coverage = texture(atlas, frag_uv).r;
+    frag_color = vec4(text_color.rgb, text_color.a * coverage);
+}

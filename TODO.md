@@ -17,6 +17,7 @@
 - [ ] add proper window resizing handling
 - [ ] expose a custom shader maker api
 - [x] transparent sprites
+  - [ ] transparent gui elements
 - [x] make sprites autodetect aspect ratio
 - [x] make camera size and viewport aspect ratio sync
   - [ ] fix window scaling
@@ -34,6 +35,7 @@
   - [ ] fix various aspect ratio related issues
 - [ ] better text resizing
 - [ ] move to the other std_truetype api
+  - [ ] Handle who owns the Font object so it doesnt go out of scope before stuff using it and doesnt leak memory
 
 
 ## FURTHER FEATURES

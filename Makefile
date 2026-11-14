@@ -1,20 +1,23 @@
 CXX = clang++
-CC = clang
+CC  = clang
 
 INCLUDE = -Iinclude
-LIBS = -lglfw -lGL
-
-CXXFLAGS = -std=c++17 $(INCLUDE) -Wall -Wextra -MMD -MP
-CFLAGS = $(INCLUDE) -MMD -MP
+LIBS    = -lglfw -lGL
 
 TARGET = bin/main
+OBJS   = obj/main.o obj/glad.o
+DEPS   = $(OBJS:.o=.d)
 
-SRCS_CPP = src/main.cpp
-SRCS_C = src/glad.c
-OBJS = obj/main.o obj/glad.o
-DEPS = $(OBJS:.o=.d)
+.DEFAULT_GOAL := all
+
+CXXFLAGS = -std=c++17 $(INCLUDE) -Wall -Wextra -MMD -MP -O3
+CFLAGS   = $(INCLUDE) -MMD -MP -O3
 
 all: $(TARGET)
+
+debug: CXXFLAGS = -std=c++17 $(INCLUDE) -Wall -Wextra -MMD -MP -g -O0
+debug: CFLAGS   = $(INCLUDE) -MMD -MP -g -O0
+debug: clean $(TARGET)
 
 $(TARGET): $(OBJS)
 	mkdir -p bin
@@ -33,7 +36,10 @@ obj/glad.o: src/glad.c
 run: all
 	./$(TARGET)
 
+rundebug: debug
+	./$(TARGET)
+
 clean:
 	rm -rf obj/* bin/*
 
-.PHONY: all run clean
+.PHONY: all debug run rundebug clean
