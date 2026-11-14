@@ -2,9 +2,10 @@
 
 ### Features
 - [x] Add gui elements
-  - [x] Make text gui
+- [x] Make text gui
 - [x] Add sprite drawing
-  - [ ] input handling
+- [x] input handling
+  - [ ] getButtonDown() and getButtonUp()
 - [ ] general event handling
 - [x] make screen handle camera creation
 - [x] sprite z ordering
@@ -27,7 +28,7 @@
 
 ### Stucture and code
   - [ ] unbind textures after binding or use
-  - [ ] better error messages
+- [x] better error messages
   - [ ] make stuff non copyable and constant
 - [x] make shader.hpp use c++ file streams
 - [x] mabye migrate all math to glm OR migrate the shader uniforms to the custom vec2/vec3
@@ -37,6 +38,7 @@
 - [ ] move to the other std_truetype api
   - [ ] Handle who owns the Font object so it doesnt go out of scope before stuff using it and doesnt leak memory
   - [ ] standardize member names
+  - [ ] virtual draw()
 
 ## FURTHER FEATURES
 - [ ] Add configurable custom drawing logic

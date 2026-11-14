@@ -5,7 +5,7 @@
 
 
 int main() {
-    engine::Screen screen("name", 1600, 800, 1);
+    engine::Window screen("name", 1600, 800, 1);
     screen.has_anti_aliasing = 1;
     engine::Camera* camera0 = screen.createCamera(
         vec2<double>(0, 0),
@@ -55,18 +55,17 @@ int main() {
                                 "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras eu congue eros. Morbi commodo nisi accumsan consectetur iaculis. Cras eu luctus magna, vitae aliquet est. Cras scelerisque volutpat accumsan. Suspendisse potenti. Pellentesque a purus sed eros efficitur sodales. Cras sed vulputate ante, nec laoreet turpis. Fusce quis suscipit orci. Donec vel porttitor sapien. Suspendisse potenti. Ut vel ipsum sem. ",
                                 vec2<double>(0.3, 0.5), 0.2, 0, RGBAColor{255, 255, 255, 100});
 
-    // gui_group->newTextElement("text", "font", position, width, z_order);
+    gui_group0->newTextElement(comic_relief_font.get(), "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras eu congue eros. Morbi commodo",
+        vec2<double>(0.5, 0.5), 0.5, 1, RGBAColor{255, 0, 0, 255});
     
-    int timer = 0;
-    while(!screen.shouldClose()){
-        timer++;
-        
+    while(!screen.shouldClose()){        
         screen.pollEvents();
+        if(screen.buttonDown(GLFW_KEY_W)) obj1->position.y()++;
+        if(screen.buttonDown(GLFW_KEY_S)) obj1->position.y()--;
+        if(screen.buttonDown(GLFW_KEY_A)) obj1->position.x()--;
+        if(screen.buttonDown(GLFW_KEY_D)) obj1->position.x()++;
         screen.draw();
         screen.swapBuffers();
-        
-        if (timer % 2 == 0) scene->changeSpriteZ(obj1, obj2->z_layer+1);
-        else scene->changeSpriteZ(obj2, obj1->z_layer+1);
         
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }

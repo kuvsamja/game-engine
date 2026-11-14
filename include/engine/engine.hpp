@@ -472,7 +472,7 @@ class GUIGroup {
     }
 };
 
-class Screen {
+class Window {
   private:
     GLFWwindow* window{nullptr};
     double window_scale;
@@ -590,7 +590,7 @@ class Screen {
         width/height - pixel width and height of the window
         window_scale - scales a window up or down by a factor
     */
-    Screen(const char* name, uint32_t width, uint32_t height, double window_scale) {
+    Window(const char* name, uint32_t width, uint32_t height, double window_scale) {
         size.x() = width;
         size.y() = height;
         this->window_scale = window_scale;
@@ -599,7 +599,7 @@ class Screen {
         createQuad();
     }
 
-    ~Screen() {
+    ~Window() {
         /* destruct cameras */
         for(auto camera_data : cameras) {
             delete camera_data;
@@ -682,12 +682,18 @@ class Screen {
     void pollEvents() {
         glfwPollEvents();
     }
-
     /*
         Returns true when user clicks X button
     */
     bool shouldClose() {
         return glfwWindowShouldClose(window);
+    }
+
+    /*
+        Checks if a key is pressed
+     */
+    bool buttonDown(int key) {
+        return glfwGetKey(window, key) == GLFW_PRESS;
     }
 
     /*
