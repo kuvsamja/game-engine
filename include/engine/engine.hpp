@@ -453,6 +453,24 @@ class GUIGroup {
         gui_elements.insert(element);
         return element;
     }
+
+    
+    bool deleteGUIElement(GUIElement* element) { // TODO: null the pointer mabye
+        if (gui_elements.erase(element)) {
+            delete element;
+            return true;
+        }
+        return false;
+    }
+    
+    bool changeGUIElementZ(GUIElement* element, double new_z) {
+        if(!gui_elements.erase(element)) return false;
+
+        element->z_order = new_z;
+        gui_elements.insert(element);
+
+        return true;
+    }
 };
 
 class Screen {

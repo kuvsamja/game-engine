@@ -48,12 +48,12 @@ int main() {
     gui_group0->newImageElement("assets/gui-elements/mask.png", vec2<double>(0.15, 0.1), 0.04, 0);
     gui_group0->newImageElement("assets/gui-elements/mask.png", vec2<double>(0.2, 0.1), 0.04, 0);
     gui_group0->newImageElement("assets/gui-elements/mask.png", vec2<double>(0.25, 0.1), 0.04, 0);
-    gui_group0->newImageElement("assets/gui-elements/mask.png", vec2<double>(0.3, 0.1), 0.04, 0);
+    gui_group0->newImageElement("assets/gui-elements/mask-transparent.png", vec2<double>(0.3, 0.1), 0.04, 0);
 
-    auto comic_relief_font = std::make_unique<engine::Font>("assets/fonts/ComicRelief-Regular.ttf", 20);
+    auto comic_relief_font = std::make_unique<engine::Font>("assets/fonts/ComicRelief-Regular.ttf", 40);
     gui_group0->newTextElement(comic_relief_font.get(), 
                                 "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras eu congue eros. Morbi commodo nisi accumsan consectetur iaculis. Cras eu luctus magna, vitae aliquet est. Cras scelerisque volutpat accumsan. Suspendisse potenti. Pellentesque a purus sed eros efficitur sodales. Cras sed vulputate ante, nec laoreet turpis. Fusce quis suscipit orci. Donec vel porttitor sapien. Suspendisse potenti. Ut vel ipsum sem. ",
-                                vec2<double>(0.3, 0.5), 0.1, 0, RGBAColor{255, 255, 255, 255});
+                                vec2<double>(0.3, 0.5), 0.2, 0, RGBAColor{255, 255, 255, 100});
 
     // gui_group->newTextElement("text", "font", position, width, z_order);
     
