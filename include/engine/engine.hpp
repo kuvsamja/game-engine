@@ -16,6 +16,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb/stb_truetype.h>
+
 namespace engine
 {
 
@@ -301,6 +304,64 @@ class CameraData {
     }
 };
 
+class Font {
+  public:
+    GLuint atlas_texture;
+    int atlas_width{0};
+    int atlas_height{0};
+    int pixel_height{0};
+    static constexpr int FIRST_CHAR = 32;
+    static constexpr int CHAR_COUNT = 96;
+    stbtt_bakedchar cdata[CHAR_COUNT];
+
+    ~Font() {
+        if (atlas_texture) glDeleteTextures(1, &atlas_texture);
+    }
+    
+    /*
+        Loads the font atlas into an OpenGL texture
+     */
+    Font(const char* path, int height) { // TODO: make it load unicode
+        pixel_height = height;
+        
+        std::ifstream ttf_file_stream(path, std::ios::binary);
+        if (!ttf_file_stream.is_open()) {
+            std::cerr << "ERROR: failed opening file: " << path << std::endl;
+            std::exit(1);
+        }
+        std::vector<uint8_t> ttf_contents {
+            std::istreambuf_iterator<char>(ttf_file_stream),
+            std::istreambuf_iterator<char>()
+        };
+
+        std::vector<unsigned char> atlas;
+        uint32_t size = 128;
+        while(true) {
+            atlas.assign(size * size, 0);
+            int result = stbtt_BakeFontBitmap(ttf_contents.data(), 0, static_cast<float>(height),
+                            atlas.data(), size, size, FIRST_CHAR, CHAR_COUNT, cdata);
+            if (result > 0) break;
+
+            size *= 2;
+            if (size > 4096) {
+                std::cerr << "ERROR: font atlas too large or a bad ttf file" << std::endl;
+                std::exit(1);
+            }
+        }
+        
+        atlas_width = atlas_height = size;
+
+        glGenTextures(1, &atlas_texture);
+        glBindTexture(GL_TEXTURE_2D, atlas_texture);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, size, size, 0, GL_RED, GL_UNSIGNED_BYTE, atlas.data());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+};
+
 struct GUIElement {
   public:
     GLuint texture;
@@ -312,6 +373,7 @@ struct GUIElement {
         glDeleteTextures(1, &texture);
     }
 };
+
 
 class GUIGroup {
   private:
@@ -340,7 +402,7 @@ class GUIGroup {
         z_order - decides which elements are drawn on top of others
         note: gui aspect ratio doesnt depend on screen or viewport aspect ratios
      */
-    GUIElement* newElement(const char* path, vec2<double> position, double width, double z_order) {
+    GUIElement* newImageElement(const char* path, vec2<double> position, double width, double z_order) {
         GUIElement* element = new GUIElement;
         element->position = position;
         element->z_order = z_order;
@@ -356,7 +418,6 @@ class GUIGroup {
 
         return element;
     }
-    // TODO: mabye add custom aspect ratio gui
 };
 
 class Screen {

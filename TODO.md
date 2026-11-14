@@ -24,7 +24,9 @@
 - [x] make camera size and viewport aspect ratio sync
 - [x] make shader.hpp use c++ file streams
   - [ ] fix window scaling
-
+  - [ ] make stuff non copyable
+- [ ] unicode font support
+  - [ ] better error messages
 ## FURTHER FEATURES
 - [ ] Add configurable custom drawing logic
 - [ ] Make some objects
