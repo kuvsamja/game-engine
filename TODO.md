@@ -38,7 +38,8 @@
 - [ ] move to the other std_truetype api
   - [ ] Handle who owns the Font object so it doesnt go out of scope before stuff using it and doesnt leak memory
   - [ ] standardize member names
-  - [ ] virtual draw()
+- [x] virtual draw()
+- [ ] RAII
 
 ## FURTHER FEATURES
 - [ ] Add configurable custom drawing logic

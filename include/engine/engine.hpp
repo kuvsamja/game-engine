@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 #include <utility/vec2.hpp>
 #include <utility/color.h>
@@ -495,6 +496,27 @@ class GUIGroup {
     }
 };
 
+class ShaderManager {
+  private:
+    std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;
+  public:
+    Shader* load(const std::string& name, const char* vertex_path, const char* fragment_path) {
+        auto it = shaders.find(name);
+        if (it != shaders.end()) {
+            std::cerr << "shader with name: " << name << "already loaded" << std::endl;
+            std::exit(1);
+        }
+        auto s = std::make_unique<Shader>(vertex_path, fragment_path);
+        Shader* raw = s.get();
+        shaders[name] = std::move(s);
+        return raw;
+    }
+    Shader* get(const std::string& name) {
+        auto it = shaders.find(name);
+        return it == shaders.end() ? nullptr : it->second.get();
+    }
+};
+
 class Window {
   private:
     GLFWwindow* window{nullptr};
@@ -510,6 +532,7 @@ class Window {
     Shader* draw_sprite_shader{nullptr};
     Shader* draw_gui_image_shader{nullptr};
     Shader* draw_gui_text_shader{nullptr};
+    ShaderManager shader_manager;
     
     /*
         Initializes GLFW window and the OpenGL context
@@ -578,15 +601,18 @@ class Window {
     }
 
     void makeShaders() {
-        draw_sprite_shader = new Shader(
+        draw_sprite_shader = shader_manager.load(
+            "sprite_shader",
             "shaders/draw_sprite/vertex.gl",
             "shaders/draw_sprite/fragment.gl"
         );
-        draw_gui_image_shader = new Shader(
+        draw_gui_image_shader = shader_manager.load(
+            "gui_image_shader",
             "shaders/draw_gui_image/vertex.gl",
             "shaders/draw_gui_image/fragment.gl"
         );
-        draw_gui_text_shader = new Shader(
+        draw_gui_text_shader = shader_manager.load(
+            "gui_text_shader",
             "shaders/draw_gui_text/vertex.gl",
             "shaders/draw_gui_text/fragment.gl"
         );
