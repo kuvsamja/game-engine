@@ -21,7 +21,7 @@ class Shader {
         // // vertex
         std::ifstream vertex_shader_file_stream(vertex_shader_path);
         if(!vertex_shader_file_stream.is_open()) {
-            std::cerr << "ERROR: opening vertex shader file failed" << std::endl;
+            std::cerr << "ERROR: opening vertex shader file failed: " << vertex_shader_path << std::endl;
             std::exit(-1);
         }
         std::string vertex_shader_text{
@@ -34,7 +34,7 @@ class Shader {
         // // fragment
         std::ifstream fragment_shader_file_stream(fragment_shader_path);
         if(!fragment_shader_file_stream.is_open()) {
-            std::cerr << "ERROR: opening fragment shader file failed" << std::endl;
+            std::cerr << "ERROR: opening fragment shader file failed: " << fragment_shader_path << std::endl;
             std::exit(-1);
         }
         std::string fragment_shader_text{
@@ -57,7 +57,7 @@ class Shader {
         glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
         if(!success) {
             glGetShaderInfoLog(vertex, 512, NULL, info_log);
-            std::cerr << "ERROR: vertex shader compilation failed\n" << info_log << std::endl;
+            std::cerr << "ERROR: vertex shader compilation failed\n" << info_log << std::endl << "file: " << vertex_shader_path << std::endl;
             std::exit(-1);
         };
 
@@ -68,7 +68,7 @@ class Shader {
         glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
         if(!success) {
             glGetShaderInfoLog(fragment, 512, NULL, info_log);
-            std::cerr << "ERROR: fragment shader compilation failed\n" << info_log << std::endl;
+            std::cerr << "ERROR: fragment shader compilation failed\n" << info_log << std::endl << "file: " << fragment_shader_path << std::endl;
             std::exit(-1);
         }
 

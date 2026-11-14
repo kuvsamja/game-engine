@@ -38,7 +38,7 @@ inline void loadGLTexture(GLuint* texture, const char* path, int* width, int* he
 
     unsigned char *data = stbi_load(path, width, height, channels, 4);
     if (data == NULL) {
-        std::cerr << "ERROR: failed to load image data" << std::endl;
+        std::cerr << "ERROR: failed to load image data for image: " << path << std::endl;
         std::exit(1);
     }
 
@@ -119,14 +119,13 @@ class SpriteObject : public Transform {
     }
 
     /*
-        normal map image and sprite image must be the same resulution TODO: make them not need to be same resolution
         Load an image as the sprite
     */
     void loadTexture(const char* sprite_image_path) {
         int sprite_width, sprite_height, sprite_channels;
         loadGLTexture(&sprite, sprite_image_path, &sprite_width, &sprite_height, &sprite_channels);
         if (!sprite) {
-            std::cerr << "Failed to load sprite texture from the path: \"" << sprite_image_path << "\"" << std::endl;
+            std::cerr << "Failed to load sprite texture from the path: " << sprite_image_path << std::endl;
             std::exit(1);
         }
     }
@@ -292,7 +291,7 @@ class CameraData {
 
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "Framebuffer not complete" << std::endl;
+            std::cerr << "ERROR: Framebuffer not complete" << std::endl;
             std::exit(1);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -344,7 +343,7 @@ class Font {
 
             size *= 2;
             if (size > 4096) {
-                std::cerr << "ERROR: font atlas too large or a bad ttf file" << std::endl;
+                std::cerr << "ERROR: font atlas too large or a bad ttf file: " << path << std::endl;
                 std::exit(1);
             }
         }
@@ -494,7 +493,7 @@ class Screen {
     */
     void init(const char* name) {
         if (!glfwInit()) {
-            std::cerr << "glfwInit failed" << std::endl;
+            std::cerr << "ERROR: glfwInit failed" << std::endl;
             std::exit(1);
         }
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -511,14 +510,14 @@ class Screen {
             nullptr
         );
         if (!window) {
-            std::cerr << "glfwCreateWindow failed" << std::endl;
+            std::cerr << "ERROR: glfwCreateWindow failed" << std::endl;
             glfwTerminate();
             std::exit(1);
         }
         glfwMakeContextCurrent(window);
 
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-            std::cerr << "gladLoadGLLoader failed" << std::endl;
+            std::cerr << "ERROR: gladLoadGLLoader failed" << std::endl;
             std::exit(1);
         }
         glViewport(0, 0, static_cast<int>(size.x()), static_cast<int>(size.y()));
@@ -697,7 +696,7 @@ class Screen {
     void drawSprites() {
         for( const auto &camera_data : cameras ) {
             if (camera_data->camera->getScene() == nullptr) {
-                std::cerr << "Please bind a scene to the camera before drawing" << std::endl;
+                std::cerr << "ERROR: Please bind a scene to the camera before drawing" << std::endl;
                 std::exit(1);
             }
             glBindFramebuffer(GL_FRAMEBUFFER, camera_data->color_buffer_fbo);
