@@ -62,8 +62,8 @@ int main() {
         screen.pollEvents();
         if(screen.buttonDown(GLFW_KEY_W)) obj1->position.y()++;
         if(screen.buttonDown(GLFW_KEY_S)) obj1->position.y()--;
-        if(screen.buttonDown(GLFW_KEY_A)) obj1->position.x()--;
         if(screen.buttonDown(GLFW_KEY_D)) obj1->position.x()++;
+        if(screen.buttonDown(GLFW_KEY_A)) obj1->position.x()--;
         screen.draw();
         screen.swapBuffers();
         

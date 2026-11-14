@@ -4,9 +4,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-
 #include <cstdint>
 #include <iostream>
+#include <memory>
 
 #include <utility/vec2.hpp>
 #include <utility/color.h>
@@ -47,6 +47,17 @@ inline void loadGLTexture(GLuint* texture, const char* path, int* width, int* he
     stbi_image_free(data);
 }
 
+class Camera;
+
+struct DrawContext {
+    Shader* draw_sprite_shader;
+    Shader* draw_gui_image_shader;
+    Shader* draw_gui_text_shader;
+    GLuint quad_vao;
+    int viewport_pixel_width, viewport_pixel_height;
+    Camera* camera;   // nullptr when drawing GUI
+};
+
 class Transform {
   public:
     /* position in world space */
@@ -56,35 +67,33 @@ class Transform {
 class SpriteObject : public Transform {
   private:
     /* current sprite */
-
     GLuint sprite{0};
-
   public:
+    Shader* shader{nullptr}; // leave nullptr for the default shader
     vec2<double> sprite_offset;
     vec2<double> sprite_size;
-    double z_layer;
-    bool ignore_light{false};
+    double z_order;
     /*
         x, y - position in world
         sprite_w - sprite width
         sprite_h - sprite height
     */
-    SpriteObject(double x, double y, double sprite_w, double sprite_h, double z_layer) {
+    SpriteObject(double x, double y, double sprite_w, double sprite_h, double z_order) {
         position = vec2(x, y);
         sprite_size = vec2(sprite_w, sprite_h);
         sprite_offset = vec2(0.0, 0.0);
-        this->z_layer = z_layer;
+        this->z_order = z_order;
     }
 
     /*
         position - position in world
         sprite_size - sprite width and height in world
     */
-    SpriteObject(vec2<double> position, vec2<double> sprite_size, double z_layer) { // TODO: PUT SPRITE OFFSET INTO THE CONSTRUCTOR
+    SpriteObject(vec2<double> position, vec2<double> sprite_size, double z_order) { // TODO: PUT SPRITE OFFSET INTO THE CONSTRUCTOR
         this->position = position;
         this->sprite_size = sprite_size;
         sprite_offset = vec2(0.0, 0.0);
-        this->z_layer = z_layer;
+        this->z_order = z_order;
 
     }
 
@@ -93,31 +102,33 @@ class SpriteObject : public Transform {
         sprite_w - sprite width
         sprite_h - sprite height
         sprite_offset_x / sprite_offset_y - sprite offset from object position in world units
-        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+        z_order - sprite depth ordering, smaller z means sprite is drawn below others
     */
-    SpriteObject(double x, double y, double sprite_w, double sprite_h, double sprite_offset_x, double sprite_offset_y, double z_layer) {
+    SpriteObject(double x, double y, double sprite_w, double sprite_h, double sprite_offset_x, double sprite_offset_y, double z_order) {
         position = vec2(x, y);
         sprite_size = vec2(sprite_w, sprite_h);
         sprite_offset = vec2(sprite_offset_x, sprite_offset_y);
-        this->z_layer = z_layer;
+        this->z_order = z_order;
     }
 
     /*
         position - position in world
         sprite_size - sprite width and height in world
         sprite_offset - sprite offset from object position in world units
-        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+        z_order - sprite depth ordering, smaller z means sprite is drawn below others
     */
-    SpriteObject(vec2<double> position, vec2<double> sprite_size, vec2<double> sprite_offset, double z_layer) {
+    SpriteObject(vec2<double> position, vec2<double> sprite_size, vec2<double> sprite_offset, double z_order) {
         this->position = position;
         this->sprite_size = sprite_size;
         this->sprite_offset = sprite_offset;
-        this->z_layer = z_layer;
+        this->z_order = z_order;
     }
-    ~SpriteObject() {
+    virtual ~SpriteObject() {
         if (sprite) glDeleteTextures(1, &sprite);
     }
 
+    virtual void draw(const DrawContext& draw_context);
+    
     /*
         Load an image as the sprite
     */
@@ -140,7 +151,7 @@ class SpriteObject : public Transform {
 class Scene {
   private:
     static inline bool compareZ(SpriteObject* const& s1, SpriteObject* const& s2) {
-        return s1->z_layer < s2->z_layer;
+        return s1->z_order < s2->z_order;
     }
 
   public:
@@ -156,13 +167,13 @@ class Scene {
         position - position in worldspace
         sprite_path - file path to the image of the sprite
         sprite_size - sprite width and height in worldspace
-        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+        z_order - sprite depth ordering, smaller z means sprite is drawn below others
         creates a SpriteObject and pushes it into the Scene
 
         returns a pointer to that SpriteObject
     */
-    SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, vec2<double> sprite_size, double z_layer) {
-        SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_layer);
+    SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, vec2<double> sprite_size, double z_order) {
+        SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_order);
         sprite_object->loadTexture(sprite_path);
         sprite_objects.insert(sprite_object);
         return sprite_object;
@@ -172,12 +183,12 @@ class Scene {
         position - position in worldspace
         sprite_path - file path to the image of the sprite
         sprite_width - sprite width and height in worldspace
-        z_layer - sprite depth ordering, smaller z means sprite is drawn below others
+        z_order - sprite depth ordering, smaller z means sprite is drawn below others
         creates a SpriteObject and pushes it into the Scene
 
         returns a pointer to that SpriteObject
     */
-    SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, double sprite_width, double z_layer) {
+    SpriteObject* addSpriteObject(const char* sprite_path, vec2<double> position, double sprite_width, double z_order) {
         int width, height, channels;
         if (!stbi_info(sprite_path, &width, &height, &channels)) {
             std::cerr << "ERROR: failed to read sprite info: " << stbi_failure_reason() << std::endl;
@@ -186,12 +197,24 @@ class Scene {
         double sprite_height = sprite_width / width * height; 
 
         vec2<double> sprite_size(sprite_width, sprite_height);
-        SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_layer);
+        SpriteObject* sprite_object = new SpriteObject(position, sprite_size, z_order);
         sprite_object->loadTexture(sprite_path);
         sprite_objects.insert(sprite_object);
         return sprite_object;
     }
 
+    /*
+        adds your own sprite object to the list and takes its ownership
+        note: you must load the texture yourself
+     */
+    template <typename T>
+    T* addSpriteObject(std::unique_ptr<T> sprite_object) {
+        static_assert(std::is_base_of<SpriteObject, T>::value, "T must derive from SpriteObject");
+        T* raw = sprite_object.get();
+        sprite_objects.insert(raw);
+        sprite_object.release();
+        return raw;
+    }
     bool deleteSpriteObject(SpriteObject* sprite_object) {
         if (sprite_objects.erase(sprite_object)) {
             delete sprite_object;
@@ -203,7 +226,7 @@ class Scene {
     bool changeSpriteZ(SpriteObject* sprite_object, double new_z) {
         if(!sprite_objects.erase(sprite_object)) return false;
 
-        sprite_object->z_layer = new_z;
+        sprite_object->z_order = new_z;
         sprite_objects.insert(sprite_object);
 
         return true;
@@ -492,6 +515,9 @@ class Window {
         Initializes GLFW window and the OpenGL context
     */
     void init(const char* name) {
+        glfwSetErrorCallback([](int code, const char* msg) {
+            std::cerr << "GLFW error " << code << ": " << msg << std::endl;
+        });
         if (!glfwInit()) {
             std::cerr << "ERROR: glfwInit failed" << std::endl;
             std::exit(1);
@@ -510,7 +536,6 @@ class Window {
             nullptr
         );
         if (!window) {
-            std::cerr << "ERROR: glfwCreateWindow failed" << std::endl;
             glfwTerminate();
             std::exit(1);
         }
@@ -701,14 +726,15 @@ class Window {
     */
     void drawSprites() {
         for( const auto &camera_data : cameras ) {
+            
             if (camera_data->camera->getScene() == nullptr) {
                 std::cerr << "ERROR: Please bind a scene to the camera before drawing" << std::endl;
                 std::exit(1);
             }
             glBindFramebuffer(GL_FRAMEBUFFER, camera_data->color_buffer_fbo);
-            int pixel_width = static_cast<int>(width() * camera_data->screen_viewport_size.x());
-            int pixel_height = static_cast<int>(height() * camera_data->screen_viewport_size.y());
-            glViewport(0, 0, pixel_width, pixel_height);
+            int viewport_pixel_width = static_cast<int>(width() * camera_data->screen_viewport_size.x());
+            int viewport_pixel_height = static_cast<int>(height() * camera_data->screen_viewport_size.y());
+            glViewport(0, 0, viewport_pixel_width, viewport_pixel_height);
 
             glClearColor(
                 static_cast<float>(camera_data->camera->bg_color.r) / 255,
@@ -718,40 +744,23 @@ class Window {
             );
             glClear(GL_COLOR_BUFFER_BIT);
 
-            draw_sprite_shader->use();
-
-            draw_sprite_shader->setVec2(
-                "camera_world_position",
-                camera_data->camera->position
-            );
-            draw_sprite_shader->setVec2(
-                "camera_world_size",
-                camera_data->camera->size
-            );
 
             for( const auto &sprite_object : camera_data->camera->getScene()->sprite_objects ) {
-                /* vertex shader uniforms */
-                draw_sprite_shader->setVec2(
-                    "sprite_position",
-                    sprite_object->position
+                sprite_object->draw(
+                    DrawContext {
+                        draw_sprite_shader,
+                        draw_gui_image_shader,
+                        draw_gui_text_shader,
+                        quad_vao,
+                        viewport_pixel_width, viewport_pixel_height,
+                        camera_data->camera
+                    }
                 );
-                draw_sprite_shader->setVec2(
-                    "sprite_offset",
-                    sprite_object->sprite_offset
-                );
-                draw_sprite_shader->setVec2(
-                    "sprite_size",
-                    sprite_object->sprite_size
-                );
-                /* fragment shader uniform */
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, sprite_object->getSprite());
-                draw_sprite_shader->setInt("sprite_texture", 0);
-
-
-                glBindVertexArray(quad_vao);
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+                
             }
+            draw_sprite_shader->use();
+            draw_sprite_shader->setVec2("camera_world_position", camera_data->camera->position);
+            draw_sprite_shader->setVec2("camera_world_size", camera_data->camera->size);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             int screen_x = static_cast<int>(camera_data->screen_viewport_position.x() * width());
             int screen_y = static_cast<int>(camera_data->screen_viewport_position.y() * height());
@@ -898,7 +907,25 @@ class Window {
 
     }
 };
+inline void SpriteObject::draw(const DrawContext& draw_context) {
+    Shader* s = shader ? shader : draw_context.draw_sprite_shader;
+    
+    s->use();
 
+    s->setVec2("camera_world_position", draw_context.camera->position);
+    s->setVec2("camera_world_size", draw_context.camera->size);
+    /* vertex shader uniforms */
+    s->setVec2("sprite_position", position);
+    s->setVec2("sprite_offset", sprite_offset);
+    s->setVec2("sprite_size", sprite_size);
+    /* fragment shader uniform */
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, getSprite());
+    s->setInt("sprite_texture", 0);
+
+    glBindVertexArray(draw_context.quad_vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
 
 };
 
