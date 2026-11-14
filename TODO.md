@@ -41,6 +41,7 @@
 - [x] virtual draw()
 - [ ] RAII
 
+
 ## FURTHER FEATURES
 - [ ] Add configurable custom drawing logic
 - [ ] Make some objects

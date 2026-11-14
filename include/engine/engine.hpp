@@ -49,14 +49,16 @@ inline void loadGLTexture(GLuint* texture, const char* path, int* width, int* he
 }
 
 class Camera;
+class ShaderManager;
 
 struct DrawContext {
     Shader* draw_sprite_shader;
     Shader* draw_gui_image_shader;
     Shader* draw_gui_text_shader;
+    ShaderManager* shader_manager;
     GLuint quad_vao;
     int viewport_pixel_width, viewport_pixel_height;
-    Camera* camera;   // nullptr when drawing GUI
+    Camera* camera;
 };
 
 class Transform {
@@ -532,7 +534,6 @@ class Window {
     Shader* draw_sprite_shader{nullptr};
     Shader* draw_gui_image_shader{nullptr};
     Shader* draw_gui_text_shader{nullptr};
-    ShaderManager shader_manager;
     
     /*
         Initializes GLFW window and the OpenGL context
@@ -635,6 +636,7 @@ class Window {
 
   public:
     int has_anti_aliasing = 1;
+    ShaderManager shader_manager;
 
     /*
         name - window name
@@ -777,6 +779,7 @@ class Window {
                         draw_sprite_shader,
                         draw_gui_image_shader,
                         draw_gui_text_shader,
+                        &shader_manager,
                         quad_vao,
                         viewport_pixel_width, viewport_pixel_height,
                         camera_data->camera

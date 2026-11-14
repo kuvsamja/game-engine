@@ -4,6 +4,50 @@
 #include <thread>
 
 
+class AnimatedSprite : public engine::SpriteObject {
+  private:
+    int animation_timer{0};
+    int frame_duration{30}; // in frames
+    int total_frames;
+    int current_frame{0};
+  public:
+    AnimatedSprite(std::string path, vec2<double> position, vec2<double> sprite_size, double z_order,
+                    int number_of_sprites, Shader* shader)
+        : engine::SpriteObject(position, sprite_size, z_order),
+        total_frames(number_of_sprites)
+    {
+        loadTexture(path.c_str());
+        this->shader = shader;
+    }
+
+    void draw(const engine::DrawContext& draw_context) override {        
+        animation_timer++;
+        if (animation_timer % frame_duration == 0) current_frame++;
+        current_frame %= total_frames;
+        
+        shader->use();
+        
+        shader->setVec2("camera_world_position", draw_context.camera->position);
+        shader->setVec2("camera_world_size", draw_context.camera->size);
+        /* vertex shader uniforms */
+        shader->setVec2("sprite_position", position);
+        shader->setVec2("sprite_offset", sprite_offset);
+        shader->setVec2("sprite_size", sprite_size);
+        shader->setVec2("frame", vec2<double>(current_frame, total_frames));
+        /* fragment shader uniform */
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, getSprite());
+        shader->setInt("sprite_texture", 0);
+    
+        glBindVertexArray(draw_context.quad_vao);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    }
+          
+    
+};
+
+
 int main() {
     engine::Window screen("name", 1600, 800, 1);
     screen.has_anti_aliasing = 1;
@@ -38,6 +82,22 @@ int main() {
         30,
         2
     );
+    auto shader = screen.shader_manager.load(
+        "animated-sprite",
+        "shaders/draw_animated_sprite/vertex.gl",
+        "shaders/draw_animated_sprite/fragment.gl"
+    );
+
+    auto animated_sprite = std::make_unique<AnimatedSprite>(
+        "assets/sprites/hornet/colors.png",
+        vec2<double>(20, 10),
+        vec2<double>(30, 20),
+        10,
+        4,
+        shader
+    );
+
+    scene->addSpriteObject(std::move(animated_sprite));
     
     engine::GUIGroup* gui_group0 = screen.createGUIGroup(
         vec2<double>(0, 0),
