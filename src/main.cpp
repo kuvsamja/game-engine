@@ -7,23 +7,28 @@
 class AnimatedSprite : public engine::SpriteObject {
   private:
     int animation_timer{0};
-    int frame_duration{30}; // in frames
-    int total_frames;
-    int current_frame{0};
+    int animation_frame_duration{5}; // in frames
+    
+    int total_frames{0};
+    
+    int spritesheet_x{0};
+    int spritesheet_y{0};
+
+    int current_sprite{0};
   public:
     AnimatedSprite(std::string path, vec2<double> position, vec2<double> sprite_size, double z_order,
-                    int number_of_sprites, Shader* shader)
-        : engine::SpriteObject(position, sprite_size, z_order),
-        total_frames(number_of_sprites)
-    {
+                    int spritesheet_x, int spritesheet_y, int total_frames, Shader* shader)
+        : engine::SpriteObject(position, sprite_size, z_order) {
+        this->spritesheet_x = spritesheet_x;
+        this->spritesheet_y = spritesheet_y;
+        this->total_frames = total_frames;
         loadTexture(path.c_str());
         this->shader = shader;
     }
 
     void draw(const engine::DrawContext& draw_context) override {        
         animation_timer++;
-        if (animation_timer % frame_duration == 0) current_frame++;
-        current_frame %= total_frames;
+        if (animation_timer % animation_frame_duration == 0) current_sprite = (current_sprite + 1) % total_frames;
         
         shader->use();
         
@@ -33,7 +38,13 @@ class AnimatedSprite : public engine::SpriteObject {
         shader->setVec2("sprite_position", position);
         shader->setVec2("sprite_offset", sprite_offset);
         shader->setVec2("sprite_size", sprite_size);
-        shader->setVec2("frame", vec2<double>(current_frame, total_frames));
+        shader->setVec2("spritesheet_size", vec2<double>(spritesheet_x, spritesheet_y));
+        shader->setInt("current_frame", current_sprite);
+        
+        // uniform vec2 spritesheet_size
+        // uniform int current_frame
+        
+        // shader->setVec2("frame", vec2<double>(current_frame, total_frames));
         /* fragment shader uniform */
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, getSprite());
@@ -89,15 +100,17 @@ int main() {
     );
 
     auto animated_sprite = std::make_unique<AnimatedSprite>(
-        "assets/sprites/hornet/colors.png",
+        "assets/sprites/hornet-walk/colors.png",
         vec2<double>(20, 10),
-        vec2<double>(30, 20),
+        vec2<double>(30, 40),
         10,
-        4,
+        5,
+        2,
+        5,
         shader
     );
 
-    scene->addSpriteObject(std::move(animated_sprite));
+    auto animated = scene->addSpriteObject(std::move(animated_sprite));
     
     engine::GUIGroup* gui_group0 = screen.createGUIGroup(
         vec2<double>(0, 0),
@@ -120,10 +133,10 @@ int main() {
     
     while(!screen.shouldClose()){        
         screen.pollEvents();
-        if(screen.buttonDown(GLFW_KEY_W)) obj1->position.y()++;
-        if(screen.buttonDown(GLFW_KEY_S)) obj1->position.y()--;
-        if(screen.buttonDown(GLFW_KEY_D)) obj1->position.x()++;
-        if(screen.buttonDown(GLFW_KEY_A)) obj1->position.x()--;
+        if(screen.buttonDown(GLFW_KEY_W)) animated->position.y()++;
+        if(screen.buttonDown(GLFW_KEY_S)) animated->position.y()--;
+        if(screen.buttonDown(GLFW_KEY_D)) animated->position.x()++;
+        if(screen.buttonDown(GLFW_KEY_A)) animated->position.x()--;
         screen.draw();
         screen.swapBuffers();
         
